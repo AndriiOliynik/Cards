@@ -25,16 +25,15 @@
         .card__face--back { background: #f9fbf9; color: #2e7d32; transform: rotateY(180deg); border-color: #2196F3; }
         .nav-controls { margin-top: 20px; display: flex; gap: 10px; }
         
-        /* Контейнер помилки */
         .error-hint { background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 16px; text-align: center; font-weight: bold; border: 2px solid #d32f2f; width: 280px;}
         
-        /* Кольори для слів у повідомленні */
         .txt-red { color: #d32f2f; }
         .txt-black { color: black; }
         .txt-purple { color: #8e24aa; text-decoration: underline; }
         
         .missing-word { font-size: 28px; letter-spacing: 4px; margin-bottom: 15px; color: #2c3e50; font-family: monospace; }
         #feedback { min-height: 40px; margin-top: 10px; display: flex; flex-direction: column; align-items: center; }
+        .slider-val { font-weight: bold; color: #2c3e50; margin-left: 5px; }
     </style>
     <script>
         let questions = [];
@@ -236,8 +235,16 @@
         function toggleInputMode() { inputMode = !inputMode; displayQuestion(); }
         function updateScore() { document.getElementById('score').innerHTML = `✅ ${score} | ❌ <span style="color:red">${scoreError}</span> | Питання: ${currentQuestionIndex + 1}/${questions.length}`; }
         function changeVoice(v) { selectedVoiceIndex = v; }
-        function changeRate(v) { speechRate = v; }
-        function changeQRate(v) { QRate = v; }
+        
+        // Оновлені функції для відображення значень повзунків
+        function changeRate(v) { 
+            speechRate = v; 
+            document.getElementById('rateVal').innerText = v + 'x';
+        }
+        function changeQRate(v) { 
+            QRate = v; 
+            document.getElementById('qRateValue').innerText = (v / 1000).toFixed(1) + ' сек';
+        }
     </script>
 </head>
 <body>
@@ -262,10 +269,21 @@
     <div id="score" style="font-size: 20px; font-weight: bold; margin: 15px;">✅ 0 | ❌ 0 | Питання: 0/0</div>
     <div id="questionContainer"></div>
     <hr style="width: 80%; margin: 30px;">
-    <div style="font-size: 14px; background: #fafafa; padding: 15px; border-radius: 10px; width: 320px;">
+    
+    <div style="font-size: 14px; background: #fafafa; padding: 15px; border-radius: 10px; width: 340px;">
         <label>Голос: <select id="voiceSelect" onchange="changeVoice(this.value)"></select></label><br><br>
-        <label>Швидкість озвучки: <input type="range" min="0.5" max="2" value="1" step="0.1" oninput="changeRate(this.value)"></label><br><br>
-        <label>Затримка авто-переходу: <input type="range" min="500" max="15000" value="3500" step="500" oninput="changeQRate(this.value)"></label>
+        
+        <label>
+            Швидкість озвучки: 
+            <input type="range" min="0.5" max="2" value="1" step="0.1" oninput="changeRate(this.value)">
+            <span id="rateVal" class="slider-val">1x</span>
+        </label><br><br>
+        
+        <label>
+            Затримка авто-переходу: 
+            <input type="range" min="500" max="15000" value="3500" step="500" oninput="changeQRate(this.value)">
+            <span id="qRateValue" class="slider-val">3.5 сек</span>
+        </label>
     </div>
 </body>
 </html>
