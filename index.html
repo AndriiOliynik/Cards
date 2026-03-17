@@ -3,122 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polish Learning Flashcards</title>
+    <title>Quiz App Pro</title>
     <style>
-        :root { --primary: #dc143c; --secondary: #f0f0f0; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fafafa; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 30px; padding-bottom: 50px; }
+        button { margin: 5px; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button.answerBtn { background-color: lightgray; min-width: 120px; }
+        .mode-btn { background-color: #f0f0f0; border: 1px solid #ccc; }
+        #timerDisplay { font-weight: bold; font-size: 22px; color: #e67e22; margin: 10px; display: none; }
+        input[type="text"] { padding: 12px; font-size: 18px; border-radius: 8px; border: 2px solid #ccc; width: 280px; outline: none; }
         
-        #menu { margin-bottom: 30px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-        .menu-btn { padding: 10px 20px; border: none; background: white; border-bottom: 3px solid var(--primary); cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .menu-btn:hover { background: var(--primary); color: white; }
-
-        .flashcard-container { width: 350px; height: 200px; perspective: 1000px; cursor: pointer; margin-bottom: 20px; }
-        .flashcard { width: 100%; height: 100%; position: relative; transition: transform 0.6s; transform-style: preserve-3d; text-align: center; }
-        .flashcard.flipped { transform: rotateY(180deg); }
-        
-        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; 
-                     padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-size: 1.5rem; box-sizing: border-box; }
-        .front { background: white; color: #333; border: 2px solid var(--primary); }
-        .back { background: var(--primary); color: white; transform: rotateY(180deg); }
-
-        .controls { display: flex; gap: 20px; align-items: center; }
-        button.nav { padding: 10px 25px; border-radius: 25px; border: none; background: #333; color: white; cursor: pointer; }
-        #counter { font-weight: bold; color: #666; }
+        .card-scene { width: 320px; height: 200px; perspective: 1000px; margin: 20px; }
+        .card { width: 100%; height: 100%; position: relative; transition: transform 0.6s; transform-style: preserve-3d; cursor: pointer; }
+        .card.is-flipped { transform: rotateY(180deg); }
+        .card__face {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: bold; border-radius: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15); border: 3px solid #4CAF50;
+            padding: 20px; text-align: center; background: white; box-sizing: border-box;
+        }
+        .card__face--back { background: #f9fbf9; color: #2e7d32; transform: rotateY(180deg); border-color: #2196F3; }
+        .nav-controls { margin-top: 20px; display: flex; gap: 10px; }
+        .error-hint { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 14px; text-align: center;}
     </style>
+    <script>
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let scoreError = 0;
+        let voices = [];
+        let selectedVoiceIndex = 0;
+        let speechRate = 1;
+        let QRate = 3500;
+        let swapped = false;
+        let inputMode = false;
+        let timer = null;
+        let timeLeft = 60;
+        let currentMode = 'standard';
+
+        function populateVoices() {
+            voices = window.speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voiceSelect');
+            if (!voiceSelect) return;
+            voiceSelect.innerHTML = '';
+            voices.forEach((v, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = `${v.name} (${v.lang})`;
+                if (v.lang.includes('pl')) opt.selected = true;
+                voiceSelect.appendChild(opt);
+            });
+            selectedVoiceIndex = voiceSelect.value;
+        }
+        window.speechSynthesis.onvoiceschanged = populateVoices;
+
+        function speakText(text) {
+            if (!text) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            if (voices[selectedVoiceIndex]) utterance.voice = voices[selectedVoiceIndex];
+            utterance.lang = 'pl-PL';
+            utterance.rate = speechRate;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function normalize(str) {
+            if(!str) return "";
+            return str.toLowerCase()
+                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()"'?]/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function loadQuestionsFromTxt(file) {
+            file.text().then(text => {
+                questions = text.trim().split('\n').filter(l => l.includes(';') || l.includes('/')).map(line => {
+                    let delimiter = line.includes(';') ? ';' : '/';
+                    const parts = line.split(delimiter);
+                    return { word: parts[0].trim(), translation: parts[1].trim() };
+                });
+                document.querySelectorAll('.mode-btn').forEach(b => b.disabled = false);
+            });
+        }
+
+        function setMode(mode, hasTimer = false) {
+            resetAllInternal();
+            currentMode = mode;
+            if (hasTimer) {
+                timeLeft = 60;
+                document.getElementById('timerDisplay').style.display = 'block';
+                timer = setInterval(() => {
+                    timeLeft--;
+                    document.getElementById('timerDisplay').innerText = "Час: " + timeLeft;
+                    if (timeLeft <= 0) { clearInterval(timer); alert("Час вийшов!"); resetAllInternal(); }
+                }, 1000);
+            }
+            displayQuestion();
+        }
+
+        function displayQuestion() {
+            const container = document.getElementById('questionContainer');
+            if (!questions.length) return;
+
+            if (currentQuestionIndex >= questions.length) {
+                container.innerHTML = `<h3>Кінець списку! ✅</h3><button onclick="currentQuestionIndex=0; displayQuestion()">Почати спочатку</button>`;
+                return;
+            }
+            if (currentQuestionIndex < 0) currentQuestionIndex = 0;
+
+            const q = questions[currentQuestionIndex];
+            const qText = swapped ? q.translation : q.word; 
+            const aText = swapped ? q.word : q.translation; 
+
+            if (!swapped) speakText(qText);
+
+            let contentHtml = "";
+            if (currentMode === 'flashcard') {
+                contentHtml = `
+                    <div class="card-scene">
+                        <div class="card" onclick="this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped') && swapped) speakText('${aText}')">
+                            <div class="card__face card__face--front">${qText}</div>
+                            <div class="card__face card__face--back">${aText}</div>
+                        </div>
+                    </div>`;
+            } else if (currentMode === 'trueFalse') {
+                const isCorrect = Math.random() > 0.5;
+                const randIdx = Math.floor(Math.random() * questions.length);
+                const displayA = isCorrect ? aText : (swapped ? questions[randIdx].word : questions[randIdx].translation);
+                contentHtml = `
+                    <h3>${qText} = ${displayA}?</h3>
+                    <button class="answerBtn" onclick="checkTF(this, ${isCorrect}, true, '${aText}')">Правда</button>
+                    <button class="answerBtn" onclick="checkTF(this, ${isCorrect}, false, '${aText}')">Неправда</button>`;
+            } else {
+                contentHtml = `<h3>${qText}</h3>`;
+                if (inputMode) {
+                    const isHintActive = document.getElementById('hintToggle')?.checked;
+                    const placeholderText = isHintActive ? aText : "";
+                    contentHtml += `
+                        <input type="text" id="userInput" autofocus autocomplete="off" placeholder="${placeholderText}" onkeypress="if(event.key==='Enter') checkInput('${aText}')" onblur="this.focus()">
+                        <button id="actionBtn" onclick="checkInput('${aText}')">Ок</button>
+                        <div id="feedback"></div>`;
+                } else {
+                    let opts = [aText];
+                    while(opts.length < 4 && opts.length < questions.length) {
+                        let r = swapped ? questions[Math.floor(Math.random()*questions.length)].word : questions[Math.floor(Math.random()*questions.length)].translation;
+                        if(!opts.includes(r)) opts.push(r);
+                    }
+                    opts.sort(() => Math.random() - 0.5);
+                    opts.forEach(o => {
+                        contentHtml += `<button class="answerBtn" onclick="checkBtn(this, '${aText}')">${o}</button>`;
+                    });
+                }
+            }
+
+            const navHtml = `
+                <div class="nav-controls">
+                    <button onclick="prevQ()">⬅ Назад</button>
+                    <button onclick="nextQ()">Вперед ➡</button>
+                </div>`;
+
+            container.innerHTML = contentHtml + (currentMode !== 'sprint' ? navHtml : "");
+            updateScore();
+            
+            // Завжди фокусуємо поле після відмальовки
+            if (inputMode) {
+                setTimeout(() => document.getElementById('userInput')?.focus(), 50);
+            }
+        }
+
+        function checkInput(correct) {
+            const input = document.getElementById('userInput');
+            const feedback = document.getElementById('feedback');
+            const btn = document.getElementById('actionBtn');
+            if (normalize(input.value) === normalize(correct)) {
+                input.style.backgroundColor = "#c8e6c9";
+                score++; updateScore();
+                if (swapped) speakText(correct);
+                setTimeout(nextQ, 1000);
+            } else {
+                input.style.backgroundColor = "#ffcdd2";
+                feedback.innerHTML = `<div class="error-hint">Правильно: <b>${correct}</b></div>`;
+                scoreError++; updateScore();
+                if (swapped) speakText(correct);
+                btn.innerText = "Далі";
+                btn.onclick = nextQ;
+                // Навіть при помилці фокусуємо кнопку або чекаємо наступної дії
+            }
+        }
+
+        function checkTF(btn, isCorrect, userChoice, correctText) {
+            if (isCorrect === userChoice) { 
+                btn.style.backgroundColor = "green"; score++; setTimeout(nextQ, 1000);
+            } else { 
+                btn.style.backgroundColor = "red"; scoreError++; 
+                alert("Невірно! Правильно: " + correctText); nextQ();
+            }
+            if (swapped) speakText(correctText);
+        }
+
+        function checkBtn(btn, correct) {
+            if (normalize(btn.innerText) === normalize(correct)) { 
+                btn.style.backgroundColor = "green"; score++; setTimeout(nextQ, currentMode === 'sprint' ? 400 : QRate/4);
+            } else { 
+                btn.style.backgroundColor = "red"; scoreError++; 
+                alert("Невірно! Правильно: " + correct); nextQ();
+            }
+            if (swapped) speakText(correct);
+        }
+
+        function nextQ() { currentQuestionIndex++; displayQuestion(); }
+        function prevQ() { if(currentQuestionIndex > 0) { currentQuestionIndex--; displayQuestion(); } }
+
+        function resetAllInternal() {
+            clearInterval(timer);
+            window.speechSynthesis.cancel();
+            currentQuestionIndex = 0;
+            score = 0; scoreError = 0;
+            document.getElementById('timerDisplay').style.display = 'none';
+            document.getElementById('questionContainer').innerHTML = '';
+            updateScore();
+        }
+
+        function swapLive() { swapped = !swapped; displayQuestion(); }
+        function toggleInputMode() { inputMode = !inputMode; displayQuestion(); }
+        function updateScore() { document.getElementById('score').innerHTML = `✅ ${score} | ❌ <span style="color:red">${scoreError}</span> | Питання: ${currentQuestionIndex + 1}/${questions.length}`; }
+        function changeVoice(v) { selectedVoiceIndex = v; }
+        function changeRate(v) { speechRate = v; }
+        function changeQRate(v) { QRate = v; }
+    </script>
 </head>
 <body>
-
-    <h1>Вивчення Польської A1</h1>
-    <div id="menu"></div>
-
-    <div id="game-area" style="display:none;">
-        <div class="flashcard-container" onclick="flipCard()">
-            <div id="card" class="flashcard">
-                <div class="card-face front" id="pl-text">Cześć!</div>
-                <div class="card-face back" id="ua-text">Привіт!</div>
-            </div>
-        </div>
-
-        <div class="controls">
-            <button class="nav" onclick="prevCard()">← Назад</button>
-            <span id="counter">0 / 0</span>
-            <button class="nav" onclick="nextCard()">Далі →</button>
-        </div>
+    <input type="file" accept=".txt" onchange="loadQuestionsFromTxt(this.files[0])">
+    <div style="margin: 10px 0;">
+        <button class="mode-btn" onclick="setMode('standard')" disabled>Стандарт</button>
+        <button class="mode-btn" onclick="setMode('sprint', true)" disabled>Спринт (60с)</button>
+        <button class="mode-btn" onclick="setMode('sprint', false)" disabled>Спринт (∞)</button>
+        <button class="mode-btn" onclick="setMode('flashcard')" disabled>Картки</button>
+        <button class="mode-btn" onclick="setMode('trueFalse')" disabled>Так/Ні</button>
+    </div>
+    
+    <div id="timerDisplay">Час: 60</div>
+    
+    <div style="padding: 10px; background: #eee; border-radius: 10px; margin-bottom: 10px;">
+        <button onclick="resetAllInternal()">Скинути все</button>
+        <button onclick="swapLive()" style="background: #e1f5fe;">Swap (Мова ⇄)</button>
+        <button onclick="toggleInputMode()" style="background: #fff3e0;">Кнопки ⇄ Ввід</button>
+        <label style="margin-left: 10px; cursor: pointer; font-size: 14px;">
+            <input type="checkbox" id="hintToggle" onchange="displayQuestion()"> Підказка в полі
+        </label>
     </div>
 
-    <script>
-        // Список ваших файлів
-        const files = [
-            'PL A1_0001_0029_POWITANIA.txt',
-            'PL A1_0030_0050_LICZBY.txt',
-            'PL A1_0051_0135_OSOBY. NAPISY.txt'
-        ];
+    <div id="score" style="font-size: 20px; font-weight: bold; margin: 15px;">✅ 0 | ❌ 0 | Питання: 0/0</div>
+    <div id="questionContainer"></div>
 
-        let currentWords = [];
-        let currentIndex = 0;
-
-        // Ініціалізація меню
-        const menu = document.getElementById('menu');
-        files.forEach(file => {
-            const btn = document.createElement('button');
-            btn.className = 'menu-btn';
-            btn.innerText = file.replace('.txt', '').replace(/_/g, ' ');
-            btn.onclick = () => loadFile(file);
-            menu.appendChild(btn);
-        });
-
-        async function loadFile(fileName) {
-            try {
-                const response = await fetch(fileName);
-                const text = await response.text();
-                parseData(text);
-                currentIndex = 0;
-                showCard();
-                document.getElementById('game-area').style.display = 'block';
-            } catch (err) {
-                alert('Помилка завантаження файлу. Переконайтеся, що файл знаходиться в тій же папці.');
-            }
-        }
-
-        function parseData(text) {
-            currentWords = text.split('\n')
-                .filter(line => line.includes('/') || line.includes(' / '))
-                .map(line => {
-                    // Видаляємо за допомогою регулярного виразу
-                    const cleanLine = line.replace(/\/g, '').trim();
-                    const parts = cleanLine.split(/\s*\/\s*/);
-                    return { pl: parts[0], ua: parts[1] };
-                })
-                .filter(word => word.pl && word.ua);
-        }
-
-        function showCard() {
-            const card = document.getElementById('card');
-            card.classList.remove('flipped');
-            if (currentWords.length > 0) {
-                document.getElementById('pl-text').innerText = currentWords[currentIndex].pl;
-                document.getElementById('ua-text').innerText = currentWords[currentIndex].ua;
-                document.getElementById('counter').innerText = `${currentIndex + 1} / ${currentWords.length}`;
-            }
-        }
-
-        function flipCard() {
-            document.getElementById('card').classList.toggle('flipped');
-        }
-
-        function nextCard() {
-            if (currentIndex < currentWords.length - 1) {
-                currentIndex++;
-                showCard();
-            }
-        }
-
-        function prevCard() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                showCard();
-            }
-        }
-    </script>
+    <hr style="width: 80%; margin: 30px;">
+    
+    <div style="font-size: 14px; background: #fafafa; padding: 15px; border-radius: 10px; width: 320px;">
+        <label>Голос: <select id="voiceSelect" onchange="changeVoice(this.value)"></select></label><br><br>
+        <label>Швидкість озвучки: <input type="range" min="0.5" max="2" value="1" step="0.1" oninput="changeRate(this.value)"></label><br><br>
+        <label>Затримка авто-переходу: <input type="range" min="500" max="5000" value="3500" step="500" oninput="changeQRate(this.value)"></label>
+    </div>
 </body>
 </html>
