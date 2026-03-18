@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Quiz App Pro - Mobile Ready</title>
     <style>
-        /* Базові налаштування для мобільних */
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             display: flex; flex-direction: column; align-items: center; 
@@ -14,13 +13,12 @@
             color: #333;
         }
 
-        /* Адаптивні контейнери */
         #questionContainer { width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; }
         
         button { 
             margin: 8px 4px; padding: 12px 18px; border: none; border-radius: 10px; 
             cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; 
-            touch-action: manipulation; /* Пришвидшує клік на мобільних */
+            touch-action: manipulation; 
         }
         
         button.answerBtn { background-color: #e0e0e0; width: 90%; max-width: 350px; min-height: 50px; }
@@ -28,10 +26,32 @@
         
         input[type="text"] { 
             padding: 15px; font-size: 18px; border-radius: 10px; border: 2px solid #ccc; 
-            width: 90%; max-width: 320px; outline: none; margin: 10px 0;
+            width: 90%; max-width: 320px; outline: none; margin: 10px 0; text-align: center;
         }
 
-        /* Адаптивна картка */
+        /* СТИЛІ ДЛЯ СКЛАСТИ СЛОВО */
+        .letter-pool { 
+            display: flex; flex-wrap: wrap; justify-content: center; 
+            gap: 6px; margin-top: 15px; width: 100%; max-width: 420px; 
+        }
+        .letter-btn { 
+            background: #8e24aa; color: white; 
+            flex: 0 1 calc(16% - 6px); 
+            aspect-ratio: 1/1; min-width: 40px; max-width: 55px;
+            padding: 0; font-size: 24px; border-radius: 10px; 
+            display: flex; align-items: center; justify-content: center; 
+            border: 2px solid black !important;
+            box-shadow: 0 4px 0px #4a148c;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        .letter-btn.space-btn {
+            background: rgba(255,255,255,0.5); border: 2px dashed black !important;
+            box-shadow: 0 4px 0px #999; text-shadow: none;
+        }
+        .letter-btn:active { transform: translateY(3px); box-shadow: 0 1px 0px #4a148c; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .letter-btn.wrong { background: #d32f2f !important; animation: shake 0.2s ease-in-out 2; }
+
         .card-scene { width: 95%; max-width: 350px; height: 220px; perspective: 1000px; margin: 20px 0; }
         .card { width: 100%; height: 100%; position: relative; transition: transform 0.6s; transform-style: preserve-3d; }
         .card.is-flipped { transform: rotateY(180deg); }
@@ -45,7 +65,6 @@
         }
         .card__face--back { background: #f0f7f0; transform: rotateY(180deg); border-color: #2196F3; }
 
-        /* Повідомлення про помилку */
         .error-hint { 
             background: #ffebee; padding: 15px; border-radius: 12px; margin-top: 15px; 
             font-size: 16px; text-align: center; font-weight: bold; 
@@ -57,10 +76,8 @@
         .txt-black { color: black; }
         .txt-purple { color: #8e24aa; text-decoration: underline; }
 
-        /* Навігація */
         .nav-controls { margin-top: 20px; display: flex; gap: 15px; width: 100%; justify-content: center; }
         
-        /* Панель налаштувань */
         .settings-panel { 
             font-size: 14px; background: #fff; padding: 20px; border-radius: 15px; 
             width: 95%; max-width: 360px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
@@ -75,7 +92,7 @@
     </style>
     <script>
         let questions = [];
-        let currentQuestionIndex = 0;
+        let currentQuestionIndex = -1; // -1 означає, що тест ще не почато
         let score = 0;
         let scoreError = 0;
         let voices = [];
@@ -84,9 +101,22 @@
         let QRate = 3500;
         let swapped = false;
         let inputMode = false;
+        let builderMode = false;
         let timer = null;
         let timeLeft = 60;
         let currentMode = 'standard';
+        let builderCurrentIndex = 0;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playClickSound(type = 'correct') {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(type === 'correct' ? 600 : 150, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
 
         function populateVoices() {
             voices = window.speechSynthesis.getVoices();
@@ -127,12 +157,14 @@
                     return { word: parts[0].trim(), translation: parts[1].trim() };
                 });
                 document.querySelectorAll('.mode-btn').forEach(b => b.disabled = false);
+                resetAllInternal(); // Скидаємо все при завантаженні нового файлу
             });
         }
 
         function setMode(mode, hasTimer = false) {
             resetAllInternal();
             currentMode = mode;
+            builderMode = (mode === 'wordBuilder');
             if (hasTimer) {
                 timeLeft = 60;
                 document.getElementById('timerDisplay').style.display = 'block';
@@ -142,39 +174,38 @@
                     if (timeLeft <= 0) { clearInterval(timer); alert("Час вийшов!"); resetAllInternal(); }
                 }, 1000);
             }
-            displayQuestion();
-        }
-
-        function getWordWithMissingChars(word) {
-            let result = word.split('');
-            let countToHide = Math.ceil(word.length * 0.3);
-            if (countToHide < 1 && word.length > 1) countToHide = 1;
-            let indices = [];
-            while(indices.length < countToHide) {
-                let r = Math.floor(Math.random() * word.length);
-                if(word[r] !== ' ' && !indices.includes(r)) indices.push(r);
-            }
-            indices.forEach(idx => result[idx] = '_');
-            return result.join('');
+            nextQ(); // Починаємо з першого питання
         }
 
         function displayQuestion() {
             const container = document.getElementById('questionContainer');
-            if (!questions.length) return;
+            if (!questions.length || currentQuestionIndex < 0) return;
+            
             if (currentQuestionIndex >= questions.length) {
-                container.innerHTML = `<h3>Кінець списку! ✅</h3><button onclick="currentQuestionIndex=0; displayQuestion()">Почати спочатку</button>`;
+                container.innerHTML = `<h3>Кінець списку! ✅</h3><button onclick="resetAllInternal(); nextQ()">Почати спочатку</button>`;
                 return;
             }
+            
             const q = questions[currentQuestionIndex];
             const qText = swapped ? q.translation : q.word; 
             const aText = swapped ? q.word : q.translation; 
-            if (!swapped && currentMode !== 'fillGaps') speakText(qText);
+            const isHintActive = document.getElementById('hintToggle')?.checked;
+            
+            if (!swapped && currentMode !== 'fillGaps' && !builderMode) speakText(qText);
             
             let contentHtml = "";
-            const isHintActive = document.getElementById('hintToggle')?.checked;
             const placeholderText = isHintActive ? aText : "";
 
-            if (currentMode === 'fillGaps') {
+            if (builderMode || currentMode === 'wordBuilder') {
+                builderCurrentIndex = 0;
+                const target = q.word;
+                const letters = target.split('').sort(() => Math.random() - 0.5);
+                contentHtml = `<h3>${q.translation}</h3>
+                <input type="text" id="userInput" readonly placeholder="${isHintActive ? target : ''}">
+                <div class="letter-pool">
+                    ${letters.map(l => `<button class="letter-btn ${l===' '?'space-btn':''}" onclick="handleLetterClick(this, '${l}', '${target}')">${l===' '?'␣':l}</button>`).join('')}
+                </div>`;
+            } else if (currentMode === 'fillGaps') {
                 contentHtml = `<h3>Переклад: ${q.translation}</h3><div style="font-size:24px; letter-spacing:3px; margin:10px; font-family:monospace;">${getWordWithMissingChars(q.word)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? q.word : 'Впишіть слово'}" onkeypress="if(event.key==='Enter') checkInput('${q.word}')" onblur="this.focus()"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${q.word}')">Ок</button>`;
             } else if (currentMode === 'flashcard') {
                 contentHtml = `<div class="card-scene"><div class="card" onclick="this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped') && swapped) speakText('${aText}')"><div class="card__face card__face--front">${qText}</div><div class="card__face card__face--back">${aText}</div></div></div>`;
@@ -200,15 +231,30 @@
             const navHtml = `<div class="nav-controls"><button onclick="prevQ()">⬅</button><button onclick="nextQ()">➡</button></div>`;
             container.innerHTML = contentHtml + (currentMode.includes('sprint') ? "" : navHtml);
             updateScore();
-            if (inputMode || currentMode === 'fillGaps') setTimeout(() => document.getElementById('userInput')?.focus(), 100);
+            if ((inputMode || currentMode === 'fillGaps') && !builderMode) setTimeout(() => document.getElementById('userInput')?.focus(), 100);
         }
 
-        function getColoredError(correct) {
-            return `<div class="error-hint">
-                        <span class="txt-red">Невірно!</span> 
-                        <span class="txt-black">Правильно:</span> 
-                        <span class="txt-purple">${correct}</span>
-                    </div>`;
+        function handleLetterClick(btn, char, target) {
+            const display = document.getElementById('userInput');
+            const feedback = document.getElementById('feedback');
+            if (char.toLowerCase() === target[builderCurrentIndex].toLowerCase()) {
+                playClickSound('correct');
+                display.value += target[builderCurrentIndex];
+                builderCurrentIndex++;
+                btn.style.visibility = 'hidden';
+                if (builderCurrentIndex >= target.length) {
+                    score++; updateScore(); speakText(target);
+                    setTimeout(nextQ, 800);
+                }
+            } else {
+                playClickSound('wrong');
+                btn.classList.add('wrong');
+                setTimeout(() => btn.classList.remove('wrong'), 400);
+                if (!feedback.innerHTML) {
+                    feedback.innerHTML = getColoredError(target);
+                    scoreError++; updateScore(); speakText(target);
+                }
+            }
         }
 
         function checkInput(correct) {
@@ -261,15 +307,43 @@
 
         function nextQ() { currentQuestionIndex++; displayQuestion(); }
         function prevQ() { if(currentQuestionIndex > 0) { currentQuestionIndex--; displayQuestion(); } }
+        
         function resetAllInternal() {
             clearInterval(timer); window.speechSynthesis.cancel();
-            currentQuestionIndex = 0; score = 0; scoreError = 0;
+            currentQuestionIndex = -1; // Скидаємо в стан "очікування"
+            score = 0; scoreError = 0;
             document.getElementById('timerDisplay').style.display = 'none';
-            document.getElementById('questionContainer').innerHTML = ''; updateScore();
+            document.getElementById('questionContainer').innerHTML = ''; 
+            updateScore();
         }
-        function swapLive() { swapped = !swapped; displayQuestion(); }
-        function toggleInputMode() { inputMode = !inputMode; displayQuestion(); }
-        function updateScore() { document.getElementById('score').innerHTML = `✅ ${score} | ❌ <span style="color:red">${scoreError}</span><br><small>Питання: ${currentQuestionIndex + 1}/${questions.length}</small>`; }
+
+        function toggleBuilderMode() { builderMode = !builderMode; displayQuestion(); }
+        function toggleInputMode() { builderMode = false; inputMode = !inputMode; displayQuestion(); }
+
+        function updateScore() { 
+            const total = questions.length || 0;
+            // Якщо індекс -1, показуємо 0, інакше поточний номер питання
+            const current = (currentQuestionIndex === -1) ? 0 : (currentQuestionIndex + 1);
+            document.getElementById('score').innerHTML = `✅ ${score} | ❌ <span style="color:red">${scoreError}</span><br><small>Питання: ${current}/${total}</small>`; 
+        }
+
+        function getWordWithMissingChars(word) {
+            let result = word.split('');
+            let countToHide = Math.ceil(word.length * 0.3);
+            if (countToHide < 1 && word.length > 1) countToHide = 1;
+            let indices = [];
+            while(indices.length < countToHide) {
+                let r = Math.floor(Math.random() * word.length);
+                if(word[r] !== ' ' && !indices.includes(r)) indices.push(r);
+            }
+            indices.forEach(idx => result[idx] = '_');
+            return result.join('');
+        }
+
+        function getColoredError(correct) {
+            return `<div class="error-hint"><span class="txt-red">Невірно!</span> <span class="txt-black">Правильно:</span> <span class="txt-purple">${correct}</span></div>`;
+        }
+
         function changeVoice(v) { selectedVoiceIndex = v; }
         function changeRate(v) { speechRate = v; document.getElementById('rateVal').innerText = v + 'x'; }
         function changeQRate(v) { QRate = v; document.getElementById('qRateValue').innerText = (v / 1000).toFixed(1) + ' сек'; }
@@ -281,6 +355,7 @@
         
         <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 10px;">
             <button class="mode-btn" onclick="setMode('standard')" disabled>Стандарт</button>
+            <button class="mode-btn" onclick="setMode('wordBuilder')" disabled>Скласти слово</button>
             <button class="mode-btn" onclick="setMode('fillGaps')" disabled>Букви</button>
             <button class="mode-btn" onclick="setMode('sprint', true)" disabled>Спринт 60с</button>
             <button class="mode-btn" onclick="setMode('flashcard')" disabled>Картки</button>
@@ -289,10 +364,11 @@
 
         <div id="timerDisplay" style="font-weight:bold; color:orange; margin:5px; display:none;">Час: 60</div>
         
-        <div style="display: flex; gap: 5px; margin-bottom: 10px; width: 100%; justify-content: center;">
+        <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; width: 100%; justify-content: center;">
             <button onclick="resetAllInternal()" style="font-size:12px; background:#eee;">Скинути</button>
-            <button onclick="swapLive()" style="font-size:12px; background:#e1f5fe;">Swap</button>
+            <button onclick="swapped=!swapped; displayQuestion()" style="font-size:12px; background:#e1f5fe;">Swap</button>
             <button onclick="toggleInputMode()" style="font-size:12px; background:#fff3e0;">Кнопки/Ввід</button>
+            <button onclick="toggleBuilderMode()" style="font-size:12px; background:#f3e5f5; border:1px solid #8e24aa;">Букви ⇄</button>
         </div>
         
         <label style="font-size: 13px; margin-bottom: 10px;">
