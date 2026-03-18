@@ -122,6 +122,56 @@
             background: #333; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px;
             margin-bottom: 5px; display: inline-block;
         }
+
+        /* РЕЖИМ КУЛЬОК */
+        #balloonStage {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 450px;
+            background: #e3f2fd;
+            border-radius: 20px;
+            overflow: hidden;
+            display: none;
+            border: 2px solid #bbdefb;
+            margin-top: 10px;
+        }
+
+        .balloon {
+            position: absolute;
+            width: 80px;
+            height: 100px;
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            text-align: center;
+            padding: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: inset -5px -10px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            z-index: 10;
+            /* Чорна окантовка шрифту */
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.5; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+        .popped { animation: pop 0.3s forwards; pointer-events: none; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .wrong-shake { animation: shake 0.3s; background: #555 !important; }
+
     </style>
     <script>
         let questions = [];
@@ -140,6 +190,7 @@
         let currentMode = 'standard';
         let builderCurrentIndex = 0;
         let currentLang = 'pl'; // Мова за замовчуванням
+        let balloonIntervals = [];
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playClickSound(type = 'correct') {
@@ -213,10 +264,73 @@
             });
         }
 
+        function clearBalloons() {
+            balloonIntervals.forEach(clearInterval);
+            balloonIntervals = [];
+            const stage = document.getElementById('balloonStage');
+            if(stage) stage.innerHTML = '';
+        }
+
+        function spawnBalloons(correctAnswer) {
+            clearBalloons();
+            const stage = document.getElementById('balloonStage');
+            let opts = [correctAnswer];
+            while(opts.length < 4 && opts.length < questions.length) {
+                let r = swapped ? questions[Math.floor(Math.random()*questions.length)].word : questions[Math.floor(Math.random()*questions.length)].translation;
+                if(!opts.includes(r)) opts.push(r);
+            }
+            opts.sort(() => Math.random() - 0.5);
+
+            const laneWidth = stage.offsetWidth / 4;
+
+            opts.forEach((text, i) => {
+                const b = document.createElement('div');
+                b.className = 'balloon';
+                b.innerText = text;
+                const laneX = (i * laneWidth) + (laneWidth - 80) / 2 + (Math.random() * 6 - 3);
+                b.style.left = laneX + 'px';
+                b.style.top = '-120px';
+                b.style.background = `hsl(${(i * 90) + Math.random()*30}, 70%, 55%)`;
+                
+                b.onclick = () => {
+                    if (normalize(text) === normalize(correctAnswer)) {
+                        playClickSound('correct');
+                        score++; updateScore();
+                        b.classList.add('popped');
+                        setTimeout(nextQ, 350);
+                    } else {
+                        playClickSound('wrong');
+                        scoreError++; updateScore();
+                        b.classList.add('wrong-shake');
+                        setTimeout(() => b.classList.remove('wrong-shake'), 300);
+                    }
+                };
+                stage.appendChild(b);
+
+                let currentTop = -120;
+                let speed = 0.3 + (1500 / QRate);
+                let delay = Math.random() * 1500;
+
+                setTimeout(() => {
+                    let move = setInterval(() => {
+                        currentTop += speed;
+                        b.style.top = currentTop + 'px';
+                        if (currentTop > stage.offsetHeight) {
+                            if (normalize(text) === normalize(correctAnswer)) nextQ();
+                            b.remove();
+                            clearInterval(move);
+                        }
+                    }, 25);
+                    balloonIntervals.push(move);
+                }, delay);
+            });
+        }
+
         function setMode(mode, hasTimer = false) {
             resetAllInternal();
             currentMode = mode;
             builderMode = (mode === 'wordBuilder');
+            document.getElementById('balloonStage').style.display = (mode === 'balloons') ? 'block' : 'none';
             if (hasTimer) {
                 timeLeft = 60;
                 document.getElementById('timerDisplay').style.display = 'block';
@@ -234,6 +348,7 @@
             if (!questions.length || currentQuestionIndex < 0) return;
             if (currentQuestionIndex >= questions.length) {
                 container.innerHTML = `<h3>Кінець! ✅</h3><button onclick="resetAllInternal(); nextQ()">Знову</button>`;
+                clearBalloons();
                 return;
             }
             const q = questions[currentQuestionIndex];
@@ -243,14 +358,17 @@
             
             if (!swapped && currentMode !== 'fillGaps' && !builderMode) speakText(q.word);
             
-            let contentHtml = "";
-            if (builderMode || currentMode === 'wordBuilder') {
+            let contentHtml = `<h3>${qText}</h3>`;
+            
+            if (currentMode === 'balloons') {
+                spawnBalloons(aText);
+            } else if (builderMode || currentMode === 'wordBuilder') {
                 builderCurrentIndex = 0;
                 const target = q.word;
                 const letters = target.split('').sort(() => Math.random() - 0.5);
-                contentHtml = `<h3>${q.translation}</h3><input type="text" id="userInput" readonly placeholder="${isHintActive ? target : ''}"><div class="letter-pool">${letters.map(l => `<button class="letter-btn ${l===' '?'space-btn':''}" onclick="handleLetterClick(this, '${l}', '${target}')">${l===' '?'␣':l}</button>`).join('')}</div>`;
+                contentHtml = `<h3>${qText}</h3><input type="text" id="userInput" readonly placeholder="${isHintActive ? target : ''}"><div class="letter-pool">${letters.map(l => `<button class="letter-btn ${l===' '?'space-btn':''}" onclick="handleLetterClick(this, '${l}', '${target}')">${l===' '?'␣':l}</button>`).join('')}</div>`;
             } else if (currentMode === 'fillGaps') {
-                contentHtml = `<h3>${q.translation}</h3><div style="font-size:22px; letter-spacing:3px; margin:10px; font-family:monospace; text-align:center;">${getWordWithMissingChars(q.word)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? q.word : '...'}" onkeypress="if(event.key==='Enter') checkInput('${q.word}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${q.word}')">Ок</button>`;
+                contentHtml = `<h3>${qText}</h3><div style="font-size:22px; letter-spacing:3px; margin:10px; font-family:monospace; text-align:center;">${getWordWithMissingChars(q.word)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? q.word : '...'}" onkeypress="if(event.key==='Enter') checkInput('${q.word}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${q.word}')">Ок</button>`;
             } else if (currentMode === 'flashcard') {
                 contentHtml = `<div class="card-scene"><div class="card" onclick="this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped') && swapped) speakText('${aText}')"><div class="card__face card__face--front">${qText}</div><div class="card__face card__face--back">${aText}</div></div></div>`;
             } else if (currentMode === 'trueFalse') {
@@ -258,7 +376,6 @@
                 const displayA = isCorrect ? aText : (swapped ? questions[Math.floor(Math.random()*questions.length)].word : questions[Math.floor(Math.random()*questions.length)].translation);
                 contentHtml = `<h3>${qText} = ${displayA}?</h3><button class="answerBtn" onclick="checkTF(this, ${isCorrect}, true, '${aText}')">Правда</button><button class="answerBtn" onclick="checkTF(this, ${isCorrect}, false, '${aText}')">Неправда</button>`;
             } else {
-                contentHtml = `<h3>${qText}</h3>`;
                 if (inputMode) {
                     contentHtml += `<input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? aText : '...'}" onkeypress="if(event.key==='Enter') checkInput('${aText}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${aText}')">Ок</button>`;
                 } else {
@@ -267,13 +384,12 @@
                         let r = swapped ? questions[Math.floor(Math.random()*questions.length)].word : questions[Math.floor(Math.random()*questions.length)].translation;
                         if(!opts.includes(r)) opts.push(r);
                     }
-                    opts.sort(() => Math.random() - 0.5);
-                    opts.forEach(o => { contentHtml += `<button class="answerBtn" onclick="checkBtn(this, '${aText}')">${o}</button>`; });
+                    opts.sort(() => Math.random() - 0.5).forEach(o => { contentHtml += `<button class="answerBtn" onclick="checkBtn(this, '${aText}')">${o}</button>`; });
                 }
             }
             contentHtml += `<div id="feedback"></div>`;
             const navHtml = `<div class="nav-controls"><button onclick="prevQ()">⬅</button><button onclick="nextQ()">➡</button></div>`;
-            container.innerHTML = contentHtml + (currentMode.includes('sprint') ? "" : navHtml);
+            container.innerHTML = contentHtml + (currentMode.includes('sprint') || currentMode === 'balloons' ? "" : navHtml);
             updateScore();
             if ((inputMode || currentMode === 'fillGaps') && !builderMode) setTimeout(() => document.getElementById('userInput')?.focus(), 100);
         }
@@ -344,8 +460,10 @@
         
         function resetAllInternal() {
             clearInterval(timer); window.speechSynthesis.cancel();
+            clearBalloons();
             currentQuestionIndex = -1; score = 0; scoreError = 0;
             document.getElementById('timerDisplay').style.display = 'none';
+            document.getElementById('balloonStage').style.display = 'none';
             document.getElementById('questionContainer').innerHTML = ''; 
             updateScore();
         }
@@ -379,6 +497,7 @@
         
         <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-bottom: 8px;">
             <button class="mode-btn" onclick="setMode('standard')" disabled>Стандарт</button>
+            <button class="mode-btn" onclick="setMode('balloons')" disabled style="background:#e3f2fd; border:1px solid #2196f3;">🎈 Кульки</button>
             <button class="mode-btn" onclick="setMode('wordBuilder')" disabled>Скласти</button>
             <button class="mode-btn" onclick="setMode('fillGaps')" disabled>Букви</button>
             <button class="mode-btn" onclick="setMode('sprint', true)" disabled>Спринт</button>
@@ -400,14 +519,15 @@
         </label>
 
         <div id="score">✅ 0 | ❌ 0<br><small>Оберіть .txt файл</small></div>
-        <div id="questionContainer"></div>
+        
+        <div id="questionContainer"></div> <div id="balloonStage"></div>
 
         <div class="settings-panel">
             <button class="lang-toggle" onclick="toggleLang()">Мова: <span id="langBtn">PL</span> ⇄</button>
             <select id="voiceSelect" onchange="selectedVoiceIndex=this.value" style="font-size:11px;"></select>
             <div style="margin-top:10px;">
-                <label>Швидкість: <span id="rateVal" class="slider-val">1x</span><input type="range" min="0.5" max="2" value="1" step="0.1" oninput="speechRate=this.value; document.getElementById('rateVal').innerText=this.value+'x'"></label>
-                <label>Затримка: <span id="qRateValue" class="slider-val">3.5с</span><input type="range" min="500" max="15000" value="3500" step="500" oninput="QRate=this.value; document.getElementById('qRateValue').innerText=(this.value/1000).toFixed(1)+'с'"></label>
+                <label>Швидкість озвучки: <span id="rateVal" class="slider-val">1x</span><input type="range" min="0.5" max="2" value="1" step="0.1" oninput="speechRate=this.value; document.getElementById('rateVal').innerText=this.value+'x'"></label>
+                <label>Швидкість гри: <span id="qRateValue" class="slider-val">3.5с</span><input type="range" min="500" max="15000" value="3500" step="500" oninput="QRate=this.value; document.getElementById('qRateValue').innerText=(this.value/1000).toFixed(1)+'с'"></label>
             </div>
         </div>
     </div>
