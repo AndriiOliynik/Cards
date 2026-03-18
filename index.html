@@ -8,7 +8,7 @@
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             display: flex; flex-direction: column; align-items: center; 
-            margin: 0; padding: 20px 10px 80px 10px; 
+            margin: 0; padding: 10px 5px 80px 5px; 
             background-color: #fcfcfc;
             color: #333;
         }
@@ -16,83 +16,85 @@
         #questionContainer { width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; }
         
         button { 
-            margin: 8px 4px; padding: 12px 18px; border: none; border-radius: 10px; 
-            cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; 
+            margin: 5px 2px; padding: 10px 12px; border: none; border-radius: 10px; 
+            cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; 
             touch-action: manipulation; 
         }
         
         button.answerBtn { background-color: #e0e0e0; width: 90%; max-width: 350px; min-height: 50px; }
-        .mode-btn { background-color: #fff; border: 1px solid #ddd; font-size: 14px; padding: 8px 12px; }
+        .mode-btn { background-color: #fff; border: 1px solid #ddd; font-size: 13px; padding: 6px 10px; }
         
+        /* Компактні кнопки керування */
+        .ctrl-btn { font-size: 11px !important; padding: 6px 8px !important; margin: 2px !important; flex: 1; max-width: fit-content; }
+
         input[type="text"] { 
-            padding: 15px; font-size: 18px; border-radius: 10px; border: 2px solid #ccc; 
+            padding: 12px; font-size: 18px; border-radius: 10px; border: 2px solid #ccc; 
             width: 90%; max-width: 320px; outline: none; margin: 10px 0; text-align: center;
         }
 
         /* СТИЛІ ДЛЯ СКЛАСТИ СЛОВО */
         .letter-pool { 
             display: flex; flex-wrap: wrap; justify-content: center; 
-            gap: 6px; margin-top: 15px; width: 100%; max-width: 420px; 
+            gap: 4px; margin-top: 10px; width: 100%; max-width: 420px; 
         }
         .letter-btn { 
             background: #8e24aa; color: white; 
-            flex: 0 1 calc(16% - 6px); 
-            aspect-ratio: 1/1; min-width: 40px; max-width: 55px;
-            padding: 0; font-size: 24px; border-radius: 10px; 
+            flex: 0 1 calc(16% - 4px); 
+            aspect-ratio: 1/1; min-width: 38px; max-width: 50px;
+            padding: 0; font-size: 20px; border-radius: 8px; 
             display: flex; align-items: center; justify-content: center; 
             border: 2px solid black !important;
-            box-shadow: 0 4px 0px #4a148c;
+            box-shadow: 0 3px 0px #4a148c;
             text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
         }
         .letter-btn.space-btn {
             background: rgba(255,255,255,0.5); border: 2px dashed black !important;
-            box-shadow: 0 4px 0px #999; text-shadow: none;
+            box-shadow: 0 3px 0px #999; text-shadow: none;
         }
-        .letter-btn:active { transform: translateY(3px); box-shadow: 0 1px 0px #4a148c; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .letter-btn:active { transform: translateY(2px); box-shadow: 0 1px 0px #4a148c; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
         .letter-btn.wrong { background: #d32f2f !important; animation: shake 0.2s ease-in-out 2; }
 
-        .card-scene { width: 95%; max-width: 350px; height: 220px; perspective: 1000px; margin: 20px 0; }
+        .card-scene { width: 95%; max-width: 350px; height: 200px; perspective: 1000px; margin: 15px 0; }
         .card { width: 100%; height: 100%; position: relative; transition: transform 0.6s; transform-style: preserve-3d; }
         .card.is-flipped { transform: rotateY(180deg); }
         .card__face {
             position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
             display: flex; align-items: center; justify-content: center;
-            font-size: clamp(18px, 5vw, 24px); font-weight: bold; border-radius: 20px;
+            font-size: clamp(16px, 5vw, 22px); font-weight: bold; border-radius: 20px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 3px solid #4CAF50;
             padding: 15px; text-align: center; background: white; box-sizing: border-box;
-            overflow-wrap: break-word; word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         .card__face--back { background: #f0f7f0; transform: rotateY(180deg); border-color: #2196F3; }
 
         .error-hint { 
-            background: #ffebee; padding: 15px; border-radius: 12px; margin-top: 15px; 
-            font-size: 16px; text-align: center; font-weight: bold; 
+            background: #ffebee; padding: 12px; border-radius: 12px; margin-top: 10px; 
+            font-size: 15px; text-align: center; font-weight: bold; 
             border: 2px solid #d32f2f; width: 90%; max-width: 350px;
-            box-sizing: border-box; line-height: 1.4;
         }
 
         .txt-red { color: #d32f2f; }
         .txt-black { color: black; }
         .txt-purple { color: #8e24aa; text-decoration: underline; }
 
-        .nav-controls { margin-top: 20px; display: flex; gap: 15px; width: 100%; justify-content: center; }
+        .nav-controls { margin-top: 15px; display: flex; gap: 10px; width: 100%; justify-content: center; }
         
         .settings-panel { 
-            font-size: 14px; background: #fff; padding: 20px; border-radius: 15px; 
+            font-size: 13px; background: #fff; padding: 15px; border-radius: 15px; 
             width: 95%; max-width: 360px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-top: 30px; box-sizing: border-box;
+            margin-top: 20px; box-sizing: border-box;
         }
         .slider-val { font-weight: bold; color: #2c3e50; float: right; }
-        select { padding: 8px; border-radius: 5px; width: 100%; margin-top: 5px; }
-        input[type="range"] { width: 100%; margin: 10px 0; }
+        select { padding: 6px; border-radius: 5px; width: 100%; margin-top: 5px; }
+        input[type="range"] { width: 100%; margin: 8px 0; }
 
-        #score { font-size: clamp(16px, 4vw, 20px); font-weight: bold; margin: 15px; text-align: center; }
-        h3 { text-align: center; padding: 0 10px; font-size: clamp(18px, 5vw, 22px); }
+        #score { font-size: 16px; font-weight: bold; margin: 10px; text-align: center; }
+        h3 { text-align: center; padding: 0 5px; font-size: 19px; }
     </style>
     <script>
         let questions = [];
-        let currentQuestionIndex = -1; // -1 означає, що тест ще не почато
+        let currentQuestionIndex = -1;
         let score = 0;
         let scoreError = 0;
         let voices = [];
@@ -157,7 +159,7 @@
                     return { word: parts[0].trim(), translation: parts[1].trim() };
                 });
                 document.querySelectorAll('.mode-btn').forEach(b => b.disabled = false);
-                resetAllInternal(); // Скидаємо все при завантаженні нового файлу
+                resetAllInternal();
             });
         }
 
@@ -174,39 +176,30 @@
                     if (timeLeft <= 0) { clearInterval(timer); alert("Час вийшов!"); resetAllInternal(); }
                 }, 1000);
             }
-            nextQ(); // Починаємо з першого питання
+            nextQ();
         }
 
         function displayQuestion() {
             const container = document.getElementById('questionContainer');
             if (!questions.length || currentQuestionIndex < 0) return;
-            
             if (currentQuestionIndex >= questions.length) {
-                container.innerHTML = `<h3>Кінець списку! ✅</h3><button onclick="resetAllInternal(); nextQ()">Почати спочатку</button>`;
+                container.innerHTML = `<h3>Кінець! ✅</h3><button onclick="resetAllInternal(); nextQ()">Знову</button>`;
                 return;
             }
-            
             const q = questions[currentQuestionIndex];
             const qText = swapped ? q.translation : q.word; 
             const aText = swapped ? q.word : q.translation; 
             const isHintActive = document.getElementById('hintToggle')?.checked;
-            
             if (!swapped && currentMode !== 'fillGaps' && !builderMode) speakText(qText);
             
             let contentHtml = "";
-            const placeholderText = isHintActive ? aText : "";
-
             if (builderMode || currentMode === 'wordBuilder') {
                 builderCurrentIndex = 0;
                 const target = q.word;
                 const letters = target.split('').sort(() => Math.random() - 0.5);
-                contentHtml = `<h3>${q.translation}</h3>
-                <input type="text" id="userInput" readonly placeholder="${isHintActive ? target : ''}">
-                <div class="letter-pool">
-                    ${letters.map(l => `<button class="letter-btn ${l===' '?'space-btn':''}" onclick="handleLetterClick(this, '${l}', '${target}')">${l===' '?'␣':l}</button>`).join('')}
-                </div>`;
+                contentHtml = `<h3>${q.translation}</h3><input type="text" id="userInput" readonly placeholder="${isHintActive ? target : ''}"><div class="letter-pool">${letters.map(l => `<button class="letter-btn ${l===' '?'space-btn':''}" onclick="handleLetterClick(this, '${l}', '${target}')">${l===' '?'␣':l}</button>`).join('')}</div>`;
             } else if (currentMode === 'fillGaps') {
-                contentHtml = `<h3>Переклад: ${q.translation}</h3><div style="font-size:24px; letter-spacing:3px; margin:10px; font-family:monospace;">${getWordWithMissingChars(q.word)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? q.word : 'Впишіть слово'}" onkeypress="if(event.key==='Enter') checkInput('${q.word}')" onblur="this.focus()"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${q.word}')">Ок</button>`;
+                contentHtml = `<h3>${q.translation}</h3><div style="font-size:22px; letter-spacing:3px; margin:10px; font-family:monospace;">${getWordWithMissingChars(q.word)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? q.word : '...'}" onkeypress="if(event.key==='Enter') checkInput('${q.word}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${q.word}')">Ок</button>`;
             } else if (currentMode === 'flashcard') {
                 contentHtml = `<div class="card-scene"><div class="card" onclick="this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped') && swapped) speakText('${aText}')"><div class="card__face card__face--front">${qText}</div><div class="card__face card__face--back">${aText}</div></div></div>`;
             } else if (currentMode === 'trueFalse') {
@@ -216,7 +209,7 @@
             } else {
                 contentHtml = `<h3>${qText}</h3>`;
                 if (inputMode) {
-                    contentHtml += `<input type="text" id="userInput" autofocus autocomplete="off" placeholder="${placeholderText}" onkeypress="if(event.key==='Enter') checkInput('${aText}')" onblur="this.focus()"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${aText}')">Ок</button>`;
+                    contentHtml += `<input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? aText : '...'}" onkeypress="if(event.key==='Enter') checkInput('${aText}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${aText}')">Ок</button>`;
                 } else {
                     let opts = [aText];
                     while(opts.length < 4 && opts.length < questions.length) {
@@ -236,7 +229,6 @@
 
         function handleLetterClick(btn, char, target) {
             const display = document.getElementById('userInput');
-            const feedback = document.getElementById('feedback');
             if (char.toLowerCase() === target[builderCurrentIndex].toLowerCase()) {
                 playClickSound('correct');
                 display.value += target[builderCurrentIndex];
@@ -250,8 +242,8 @@
                 playClickSound('wrong');
                 btn.classList.add('wrong');
                 setTimeout(() => btn.classList.remove('wrong'), 400);
-                if (!feedback.innerHTML) {
-                    feedback.innerHTML = getColoredError(target);
+                if (!document.getElementById('feedback').innerHTML) {
+                    document.getElementById('feedback').innerHTML = getColoredError(target);
                     scoreError++; updateScore(); speakText(target);
                 }
             }
@@ -259,48 +251,39 @@
 
         function checkInput(correct) {
             const input = document.getElementById('userInput');
-            const feedback = document.getElementById('feedback');
-            const btn = document.getElementById('actionBtn');
             if (normalize(input.value) === normalize(correct)) {
                 input.style.backgroundColor = "#2e7d32"; input.style.color = "white";
                 score++; updateScore(); speakText(correct);
                 setTimeout(nextQ, 1000);
             } else {
                 input.style.backgroundColor = "#d32f2f"; input.style.color = "white";
-                feedback.innerHTML = getColoredError(correct);
+                document.getElementById('feedback').innerHTML = getColoredError(correct);
                 scoreError++; updateScore(); speakText(correct);
-                btn.innerText = "Далі"; btn.onclick = nextQ;
+                document.getElementById('actionBtn').innerText = "Далі"; 
+                document.getElementById('actionBtn').onclick = nextQ;
             }
         }
 
         function checkTF(btn, isCorrect, userChoice, correctText) {
-            const feedback = document.getElementById('feedback');
             if (isCorrect === userChoice) { 
                 btn.style.backgroundColor = "#2e7d32"; btn.style.color = "white";
                 score++; setTimeout(nextQ, 800); 
             } else { 
                 btn.style.backgroundColor = "#d32f2f"; btn.style.color = "white";
-                feedback.innerHTML = getColoredError(correctText);
+                document.getElementById('feedback').innerHTML = getColoredError(correctText) + `<button onclick="nextQ()" style="margin-top:10px; background:#555; color:white; width:80%;">Далі</button>`;
                 scoreError++; updateScore();
-                if(!document.getElementById('manualNext')) {
-                   feedback.innerHTML += `<button id="manualNext" onclick="nextQ()" style="margin-top:10px; background:#555; color:white; width:80%;">Наступне</button>`;
-                }
             }
             if (swapped) speakText(correctText);
         }
 
         function checkBtn(btn, correct) {
-            const feedback = document.getElementById('feedback');
             if (normalize(btn.innerText) === normalize(correct)) { 
                 btn.style.backgroundColor = "#2e7d32"; btn.style.color = "white";
                 score++; setTimeout(nextQ, currentMode === 'sprint' ? 400 : QRate/4); 
             } else { 
                 btn.style.backgroundColor = "#d32f2f"; btn.style.color = "white";
-                feedback.innerHTML = getColoredError(correct);
+                document.getElementById('feedback').innerHTML = getColoredError(correct) + `<button onclick="nextQ()" style="margin-top:10px; background:#555; color:white; width:80%;">Далі</button>`;
                 scoreError++; updateScore();
-                if(!document.getElementById('manualNext')) {
-                   feedback.innerHTML += `<button id="manualNext" onclick="nextQ()" style="margin-top:10px; background:#555; color:white; width:80%;">Наступне</button>`;
-                }
             }
             if (swapped) speakText(correct);
         }
@@ -310,8 +293,7 @@
         
         function resetAllInternal() {
             clearInterval(timer); window.speechSynthesis.cancel();
-            currentQuestionIndex = -1; // Скидаємо в стан "очікування"
-            score = 0; scoreError = 0;
+            currentQuestionIndex = -1; score = 0; scoreError = 0;
             document.getElementById('timerDisplay').style.display = 'none';
             document.getElementById('questionContainer').innerHTML = ''; 
             updateScore();
@@ -319,18 +301,14 @@
 
         function toggleBuilderMode() { builderMode = !builderMode; displayQuestion(); }
         function toggleInputMode() { builderMode = false; inputMode = !inputMode; displayQuestion(); }
-
         function updateScore() { 
             const total = questions.length || 0;
-            // Якщо індекс -1, показуємо 0, інакше поточний номер питання
             const current = (currentQuestionIndex === -1) ? 0 : (currentQuestionIndex + 1);
             document.getElementById('score').innerHTML = `✅ ${score} | ❌ <span style="color:red">${scoreError}</span><br><small>Питання: ${current}/${total}</small>`; 
         }
-
         function getWordWithMissingChars(word) {
             let result = word.split('');
-            let countToHide = Math.ceil(word.length * 0.3);
-            if (countToHide < 1 && word.length > 1) countToHide = 1;
+            let countToHide = Math.max(1, Math.ceil(word.length * 0.3));
             let indices = [];
             while(indices.length < countToHide) {
                 let r = Math.floor(Math.random() * word.length);
@@ -339,49 +317,46 @@
             indices.forEach(idx => result[idx] = '_');
             return result.join('');
         }
-
         function getColoredError(correct) {
-            return `<div class="error-hint"><span class="txt-red">Невірно!</span> <span class="txt-black">Правильно:</span> <span class="txt-purple">${correct}</span></div>`;
+            return `<div class="error-hint"><span class="txt-red">Невірно!</span> <br> <span class="txt-purple">${correct}</span></div>`;
         }
-
-        function changeVoice(v) { selectedVoiceIndex = v; }
-        function changeRate(v) { speechRate = v; document.getElementById('rateVal').innerText = v + 'x'; }
-        function changeQRate(v) { QRate = v; document.getElementById('qRateValue').innerText = (v / 1000).toFixed(1) + ' сек'; }
     </script>
 </head>
 <body>
     <div style="width:100%; max-width:500px; display:flex; flex-direction:column; align-items:center;">
-        <input type="file" accept=".txt" onchange="loadQuestionsFromTxt(this.files[0])" style="font-size:12px; margin-bottom:10px;">
+        <input type="file" accept=".txt" onchange="loadQuestionsFromTxt(this.files[0])" style="font-size:11px; margin-bottom:10px;">
         
-        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 10px;">
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-bottom: 8px;">
             <button class="mode-btn" onclick="setMode('standard')" disabled>Стандарт</button>
-            <button class="mode-btn" onclick="setMode('wordBuilder')" disabled>Скласти слово</button>
+            <button class="mode-btn" onclick="setMode('wordBuilder')" disabled>Скласти</button>
             <button class="mode-btn" onclick="setMode('fillGaps')" disabled>Букви</button>
-            <button class="mode-btn" onclick="setMode('sprint', true)" disabled>Спринт 60с</button>
+            <button class="mode-btn" onclick="setMode('sprint', true)" disabled>Спринт</button>
             <button class="mode-btn" onclick="setMode('flashcard')" disabled>Картки</button>
             <button class="mode-btn" onclick="setMode('trueFalse')" disabled>Так/Ні</button>
         </div>
 
-        <div id="timerDisplay" style="font-weight:bold; color:orange; margin:5px; display:none;">Час: 60</div>
+        <div id="timerDisplay" style="font-weight:bold; color:orange; margin:5px; display:none; font-size:14px;">Час: 60</div>
         
-        <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; width: 100%; justify-content: center;">
-            <button onclick="resetAllInternal()" style="font-size:12px; background:#eee;">Скинути</button>
-            <button onclick="swapped=!swapped; displayQuestion()" style="font-size:12px; background:#e1f5fe;">Swap</button>
-            <button onclick="toggleInputMode()" style="font-size:12px; background:#fff3e0;">Кнопки/Ввід</button>
-            <button onclick="toggleBuilderMode()" style="font-size:12px; background:#f3e5f5; border:1px solid #8e24aa;">Букви ⇄</button>
+        <div style="display: flex; flex-direction: row; width: 100%; justify-content: center; align-items: center; gap: 2px; margin-bottom: 8px;">
+            <button class="ctrl-btn" onclick="resetAllInternal()" style="background:#eee;">Скинути</button>
+            <button class="ctrl-btn" onclick="swapped=!swapped; displayQuestion()" style="background:#e1f5fe;">Swap</button>
+            <button class="ctrl-btn" onclick="toggleInputMode()" style="background:#fff3e0;">Ввід</button>
+            <button class="ctrl-btn" onclick="toggleBuilderMode()" style="background:#f3e5f5; border:1px solid #8e24aa;">Букви</button>
         </div>
         
-        <label style="font-size: 13px; margin-bottom: 10px;">
-            <input type="checkbox" id="hintToggle" onchange="displayQuestion()"> Підказка в полі
+        <label style="font-size: 12px; margin-bottom: 8px;">
+            <input type="checkbox" id="hintToggle" onchange="displayQuestion()"> Підказка
         </label>
 
-        <div id="score">✅ 0 | ❌ 0<br><small>Завантажте файл .txt</small></div>
+        <div id="score">✅ 0 | ❌ 0<br><small>Оберіть .txt файл</small></div>
         <div id="questionContainer"></div>
 
         <div class="settings-panel">
-            <label>Голос: <select id="voiceSelect" onchange="changeVoice(this.value)"></select></label><br><br>
-            <label>Швидкість: <span id="rateVal" class="slider-val">1x</span><input type="range" min="0.5" max="2" value="1" step="0.1" oninput="changeRate(this.value)"></label>
-            <label>Затримка: <span id="qRateValue" class="slider-val">3.5 сек</span><input type="range" min="500" max="15000" value="3500" step="500" oninput="changeQRate(this.value)"></label>
+            <select id="voiceSelect" onchange="selectedVoiceIndex=this.value" style="font-size:11px;"></select>
+            <div style="margin-top:10px;">
+                <label>Швидкість: <span id="rateVal" class="slider-val">1x</span><input type="range" min="0.5" max="2" value="1" step="0.1" oninput="speechRate=this.value; document.getElementById('rateVal').innerText=this.value+'x'"></label>
+                <label>Затримка: <span id="qRateValue" class="slider-val">3.5с</span><input type="range" min="500" max="15000" value="3500" step="500" oninput="QRate=this.value; document.getElementById('qRateValue').innerText=(this.value/1000).toFixed(1)+'с'"></label>
+            </div>
         </div>
     </div>
 </body>
