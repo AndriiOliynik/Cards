@@ -79,6 +79,11 @@
             background: rgba(255,255,255,0.5); border: 2px dashed black !important;
             box-shadow: 0 3px 0px #999; text-shadow: none;
         }
+        /* Стиль для невірної букви */
+        .letter-btn.wrong-letter {
+            background: #d32f2f !important;
+            box-shadow: 0 3px 0px #b71c1c !important;
+        }
 
         .card-scene { width: 95%; max-width: 350px; height: 200px; perspective: 1000px; margin: 15px 0; }
         .card { width: 100%; height: 100%; position: relative; transition: transform 0.6s; transform-style: preserve-3d; }
@@ -190,6 +195,7 @@
         let timeLeft = 60;
         let currentMode = 'standard';
         let builderCurrentIndex = 0;
+        let builderWrongCount = 0; // Лічильник помилок для режиму складання
         let currentLang = 'pl';
         let balloonIntervals = [];
 
@@ -346,6 +352,8 @@
                 return;
             }
             const q = questions[currentQuestionIndex];
+            
+            // Виправлено Swap для режимів: Питання завжди qText, Відповідь aText
             const qText = swapped ? q.translation : q.word; 
             const aText = swapped ? q.word : q.translation; 
             const isHintActive = document.getElementById('hintToggle')?.checked;
@@ -358,11 +366,15 @@
                 spawnBalloons(aText);
             } else if (builderMode || currentMode === 'wordBuilder') {
                 builderCurrentIndex = 0;
-                const target = q.word;
+                builderWrongCount = 0; // Скидаємо лічильник помилок
+                const target = aText; // Тепер залежить від swap
                 const letters = target.split('').sort(() => Math.random() - 0.5);
                 contentHtml = `<h3>${qText}</h3><input type="text" id="userInput" readonly placeholder="${isHintActive ? target : ''}"><div class="letter-pool">${letters.map(l => `<button class="letter-btn ${l===' '?'space-btn':''}" onclick="handleLetterClick(this, '${l}', '${target}')">${l===' '?'␣':l}</button>`).join('')}</div>`;
             } else if (currentMode === 'fillGaps') {
-                contentHtml = `<h3>${qText}</h3><div style="font-size:22px; letter-spacing:3px; margin:10px; font-family:monospace; text-align:center;">${getWordWithMissingChars(q.word)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? q.word : '...'}" onkeypress="if(event.key==='Enter') checkInput('${q.word}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${q.word}')">Ок</button>`;
+                // Виправлено Swap: якщо swapped, показуємо переклад, вводимо польське
+                const targetWord = swapped ? q.word : q.translation;
+                const questionWord = swapped ? q.translation : q.word;
+                contentHtml = `<h3>${questionWord}</h3><div style="font-size:22px; letter-spacing:3px; margin:10px; font-family:monospace; text-align:center;">${getWordWithMissingChars(targetWord)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? targetWord : '...'}" onkeypress="if(event.key==='Enter') checkInput('${targetWord}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${targetWord}')">Ок</button>`;
             } else if (currentMode === 'flashcard') {
                 contentHtml = `<div class="card-scene"><div class="card" onclick="this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped') && swapped) speakText('${aText}')"><div class="card__face card__face--front">${qText}</div><div class="card__face card__face--back">${aText}</div></div></div>`;
             } else if (currentMode === 'trueFalse') {
@@ -390,22 +402,34 @@
 
         function handleLetterClick(btn, char, target) {
             const display = document.getElementById('userInput');
+            // Якщо буква вже червона, не реагуємо
+            if (btn.classList.contains('wrong-letter')) return;
+
             if (char.toLowerCase() === target[builderCurrentIndex].toLowerCase()) {
                 playClickSound('correct');
                 display.value += target[builderCurrentIndex];
                 builderCurrentIndex++;
                 btn.style.visibility = 'hidden';
+                
+                // Прибираємо червоний з інших букв при правильному виборі (щоб дати шанс знову)
+                document.querySelectorAll('.letter-btn').forEach(b => b.classList.remove('wrong-letter'));
+
                 if (builderCurrentIndex >= target.length) {
                     score++; updateScore(); speakText(target);
                     setTimeout(nextQ, 800);
                 }
             } else {
                 playClickSound('wrong');
-                btn.classList.add('wrong');
-                setTimeout(() => btn.classList.remove('wrong'), 400);
-                if (!document.getElementById('feedback').innerHTML) {
-                    document.getElementById('feedback').innerHTML = getColoredError(target);
-                    scoreError++; updateScore(); speakText(target);
+                btn.classList.add('wrong-letter'); // Стає червоною назавжди для цієї позиції
+                builderWrongCount++;
+                scoreError++; updateScore();
+
+                // Показуємо підказку лише після 3-ї помилки
+                if (builderWrongCount >= 3) {
+                    if (!document.getElementById('feedback').innerHTML) {
+                        document.getElementById('feedback').innerHTML = getColoredError(target);
+                        speakText(target);
+                    }
                 }
             }
         }
