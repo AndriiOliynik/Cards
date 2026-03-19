@@ -117,13 +117,11 @@
 
         #score { font-size: 16px; font-weight: bold; margin: 10px; text-align: center; }
         
-        /* Стиль для кнопки мови */
         .lang-toggle {
             background: #333; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px;
             margin-bottom: 5px; display: inline-block;
         }
 
-        /* РЕЖИМ КУЛЬОК */
         #balloonStage {
             position: relative;
             width: 100%;
@@ -139,8 +137,8 @@
 
         .balloon {
             position: absolute;
-            width: 80px;
-            height: 100px;
+            width: 85px;
+            height: 105px;
             border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
             display: flex;
             align-items: center;
@@ -154,8 +152,11 @@
             box-shadow: inset -5px -10px rgba(0,0,0,0.15);
             box-sizing: border-box;
             z-index: 10;
-            /* Чорна окантовка шрифту */
             text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.1;
         }
 
         @keyframes pop {
@@ -189,7 +190,7 @@
         let timeLeft = 60;
         let currentMode = 'standard';
         let builderCurrentIndex = 0;
-        let currentLang = 'pl'; // Мова за замовчуванням
+        let currentLang = 'pl';
         let balloonIntervals = [];
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -208,22 +209,14 @@
             const voiceSelect = document.getElementById('voiceSelect');
             if (!voiceSelect) return;
             voiceSelect.innerHTML = '';
-
-            // Фільтрація за мовою та сортування (Google наверх)
             let filtered = voices.filter(v => v.lang.toLowerCase().includes(currentLang));
-            filtered.sort((a, b) => {
-                const aG = a.name.toLowerCase().includes('google');
-                const bG = b.name.toLowerCase().includes('google');
-                return (aG === bG) ? 0 : aG ? -1 : 1;
-            });
-
+            filtered.sort((a, b) => a.name.toLowerCase().includes('google') ? -1 : 1);
             filtered.forEach((v) => {
                 const opt = document.createElement('option');
                 opt.value = voices.indexOf(v);
                 opt.textContent = `${v.name} (${v.lang})`;
                 voiceSelect.appendChild(opt);
             });
-            
             if (filtered.length > 0) {
                 selectedVoiceIndex = voices.indexOf(filtered[0]);
                 voiceSelect.value = selectedVoiceIndex;
@@ -287,7 +280,7 @@
                 const b = document.createElement('div');
                 b.className = 'balloon';
                 b.innerText = text;
-                const laneX = (i * laneWidth) + (laneWidth - 80) / 2 + (Math.random() * 6 - 3);
+                const laneX = (i * laneWidth) + (laneWidth - 85) / 2 + (Math.random() * 10 - 5);
                 b.style.left = laneX + 'px';
                 b.style.top = '-120px';
                 b.style.background = `hsl(${(i * 90) + Math.random()*30}, 70%, 55%)`;
@@ -295,6 +288,7 @@
                 b.onclick = () => {
                     if (normalize(text) === normalize(correctAnswer)) {
                         playClickSound('correct');
+                        speakText(correctAnswer);
                         score++; updateScore();
                         b.classList.add('popped');
                         setTimeout(nextQ, 350);
@@ -308,8 +302,8 @@
                 stage.appendChild(b);
 
                 let currentTop = -120;
-                let speed = 0.3 + (1500 / QRate);
-                let delay = Math.random() * 1500;
+                let speed = (0.3 + (1500 / QRate)) * (0.8 + Math.random() * 0.4);
+                let delay = Math.random() * 2000;
 
                 setTimeout(() => {
                     let move = setInterval(() => {
