@@ -22,6 +22,7 @@
             align-items: center;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            min-height: 60px; /* Зарезервоване місце для питання */
         }
         
         h3 { 
@@ -79,7 +80,6 @@
             background: rgba(255,255,255,0.5); border: 2px dashed black !important;
             box-shadow: 0 3px 0px #999; text-shadow: none;
         }
-        /* Стиль для невірної букви */
         .letter-btn.wrong-letter {
             background: #d32f2f !important;
             box-shadow: 0 3px 0px #b71c1c !important;
@@ -195,7 +195,7 @@
         let timeLeft = 60;
         let currentMode = 'standard';
         let builderCurrentIndex = 0;
-        let builderWrongCount = 0; // Лічильник помилок для режиму складання
+        let builderWrongCount = 0;
         let currentLang = 'pl';
         let balloonIntervals = [];
 
@@ -248,7 +248,11 @@
 
         function normalize(str) {
             if(!str) return "";
-            return str.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()"'?]/g, "").replace(/\s+/g, " ").trim();
+            return str.toLowerCase()
+                .replace(/[’'‘`]/g, "'") 
+                .replace(/[.,\/#!$%\^&\*;:{}=\-_~()"?]/g, "") 
+                .replace(/\s+/g, " ")
+                .trim();
         }
 
         function loadQuestionsFromTxt(file) {
@@ -352,8 +356,6 @@
                 return;
             }
             const q = questions[currentQuestionIndex];
-            
-            // Виправлено Swap для режимів: Питання завжди qText, Відповідь aText
             const qText = swapped ? q.translation : q.word; 
             const aText = swapped ? q.word : q.translation; 
             const isHintActive = document.getElementById('hintToggle')?.checked;
@@ -363,73 +365,90 @@
             let contentHtml = `<h3>${qText}</h3>`;
             
             if (currentMode === 'balloons') {
+                // Питання залишається в контейнері зверху
+                container.innerHTML = contentHtml;
                 spawnBalloons(aText);
             } else if (builderMode || currentMode === 'wordBuilder') {
-                builderCurrentIndex = 0;
-                builderWrongCount = 0; // Скидаємо лічильник помилок
-                const target = aText; // Тепер залежить від swap
+                builderCurrentIndex = 0; builderWrongCount = 0;
+                const target = aText;
                 const letters = target.split('').sort(() => Math.random() - 0.5);
-                contentHtml = `<h3>${qText}</h3><input type="text" id="userInput" readonly placeholder="${isHintActive ? target : ''}"><div class="letter-pool">${letters.map(l => `<button class="letter-btn ${l===' '?'space-btn':''}" onclick="handleLetterClick(this, '${l}', '${target}')">${l===' '?'␣':l}</button>`).join('')}</div>`;
+                contentHtml = `<h3>${qText}</h3><input type="text" id="userInput" readonly placeholder="${isHintActive ? target : ''}"><div class="letter-pool"></div>`;
+                container.innerHTML = contentHtml;
+                const pool = container.querySelector('.letter-pool');
+                letters.forEach(l => {
+                    const btn = document.createElement('button');
+                    btn.className = `letter-btn ${l===' '?'space-btn':''}`;
+                    btn.innerText = l===' '?'␣':l;
+                    btn.onclick = () => handleLetterClick(btn, l, target);
+                    pool.appendChild(btn);
+                });
             } else if (currentMode === 'fillGaps') {
-                // Виправлено Swap: якщо swapped, показуємо переклад, вводимо польське
                 const targetWord = swapped ? q.word : q.translation;
                 const questionWord = swapped ? q.translation : q.word;
-                contentHtml = `<h3>${questionWord}</h3><div style="font-size:22px; letter-spacing:3px; margin:10px; font-family:monospace; text-align:center;">${getWordWithMissingChars(targetWord)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? targetWord : '...'}" onkeypress="if(event.key==='Enter') checkInput('${targetWord}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${targetWord}')">Ок</button>`;
+                contentHtml = `<h3>${questionWord}</h3><div style="font-size:22px; letter-spacing:3px; margin:10px; font-family:monospace; text-align:center;">${getWordWithMissingChars(targetWord)}</div><input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? targetWord : '...'}" onkeypress="if(event.key==='Enter') checkInput('${targetWord.replace(/'/g, "\\'")}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${targetWord.replace(/'/g, "\\'")}')">Ок</button>`;
+                container.innerHTML = contentHtml;
             } else if (currentMode === 'flashcard') {
-                contentHtml = `<div class="card-scene"><div class="card" onclick="this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped') && swapped) speakText('${aText}')"><div class="card__face card__face--front">${qText}</div><div class="card__face card__face--back">${aText}</div></div></div>`;
+                contentHtml = `<div class="card-scene"><div class="card" onclick="this.classList.toggle('is-flipped'); if(this.classList.contains('is-flipped') && swapped) speakText('${aText.replace(/'/g, "\\'")}')"><div class="card__face card__face--front">${qText}</div><div class="card__face card__face--back">${aText}</div></div></div>`;
+                container.innerHTML = contentHtml;
             } else if (currentMode === 'trueFalse') {
                 const isCorrect = Math.random() > 0.5;
                 const displayA = isCorrect ? aText : (swapped ? questions[Math.floor(Math.random()*questions.length)].word : questions[Math.floor(Math.random()*questions.length)].translation);
-                contentHtml = `<h3>${qText} = ${displayA}?</h3><button class="answerBtn" onclick="checkTF(this, ${isCorrect}, true, '${aText}')">Правда</button><button class="answerBtn" onclick="checkTF(this, ${isCorrect}, false, '${aText}')">Неправда</button>`;
+                contentHtml = `<h3>${qText} = ${displayA}?</h3><button class="answerBtn" onclick="checkTF(this, ${isCorrect}, true, '${aText.replace(/'/g, "\\'")}')">Правда</button><button class="answerBtn" onclick="checkTF(this, ${isCorrect}, false, '${aText.replace(/'/g, "\\'")}')">Неправда</button>`;
+                container.innerHTML = contentHtml;
             } else {
                 if (inputMode) {
-                    contentHtml += `<input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? aText : '...'}" onkeypress="if(event.key==='Enter') checkInput('${aText}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${aText}')">Ок</button>`;
+                    contentHtml += `<input type="text" id="userInput" autofocus autocomplete="off" placeholder="${isHintActive ? aText : '...'}" onkeypress="if(event.key==='Enter') checkInput('${aText.replace(/'/g, "\\'")}')"><button style="background:#4CAF50; color:white;" id="actionBtn" onclick="checkInput('${aText.replace(/'/g, "\\'")}')">Ок</button>`;
                 } else {
                     let opts = [aText];
                     while(opts.length < 4 && opts.length < questions.length) {
                         let r = swapped ? questions[Math.floor(Math.random()*questions.length)].word : questions[Math.floor(Math.random()*questions.length)].translation;
                         if(!opts.includes(r)) opts.push(r);
                     }
-                    opts.sort(() => Math.random() - 0.5).forEach(o => { contentHtml += `<button class="answerBtn" onclick="checkBtn(this, '${aText}')">${o}</button>`; });
+                    opts.sort(() => Math.random() - 0.5).forEach(o => { 
+                        contentHtml += `<button class="answerBtn" onclick="checkBtn(this, '${aText.replace(/'/g, "\\'")}')">${o}</button>`; 
+                    });
                 }
+                container.innerHTML = contentHtml;
             }
-            contentHtml += `<div id="feedback"></div>`;
-            const navHtml = `<div class="nav-controls"><button onclick="prevQ()">⬅</button><button onclick="nextQ()">➡</button></div>`;
-            container.innerHTML = contentHtml + (currentMode.includes('sprint') || currentMode === 'balloons' ? "" : navHtml);
+
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.id = 'feedback';
+            container.appendChild(feedbackDiv);
+
+            const navHtml = document.createElement('div');
+            navHtml.className = 'nav-controls';
+            navHtml.innerHTML = `<button onclick="prevQ()">⬅</button><button onclick="nextQ()">➡</button>`;
+            if (!(currentMode.includes('sprint') || currentMode === 'balloons')) {
+                container.appendChild(navHtml);
+            }
+
             updateScore();
             if ((inputMode || currentMode === 'fillGaps') && !builderMode) setTimeout(() => document.getElementById('userInput')?.focus(), 100);
         }
 
         function handleLetterClick(btn, char, target) {
             const display = document.getElementById('userInput');
-            // Якщо буква вже червона, не реагуємо
             if (btn.classList.contains('wrong-letter')) return;
 
-            if (char.toLowerCase() === target[builderCurrentIndex].toLowerCase()) {
+            const simplify = (s) => s.toLowerCase().replace(/[’'‘`]/g, "'");
+            let targetChar = target[builderCurrentIndex];
+
+            if (simplify(char) === simplify(targetChar)) {
                 playClickSound('correct');
-                display.value += target[builderCurrentIndex];
+                display.value += targetChar;
                 builderCurrentIndex++;
                 btn.style.visibility = 'hidden';
-                
-                // Прибираємо червоний з інших букв при правильному виборі (щоб дати шанс знову)
                 document.querySelectorAll('.letter-btn').forEach(b => b.classList.remove('wrong-letter'));
-
                 if (builderCurrentIndex >= target.length) {
-                    score++; updateScore(); speakText(target);
-                    setTimeout(nextQ, 800);
+                    score++; updateScore(); speakText(target); setTimeout(nextQ, 800);
                 }
             } else {
                 playClickSound('wrong');
-                btn.classList.add('wrong-letter'); // Стає червоною назавжди для цієї позиції
-                builderWrongCount++;
-                scoreError++; updateScore();
-
-                // Показуємо підказку лише після 3-ї помилки
+                btn.classList.add('wrong-letter');
+                builderWrongCount++; scoreError++; updateScore();
                 if (builderWrongCount >= 3) {
-                    if (!document.getElementById('feedback').innerHTML) {
-                        document.getElementById('feedback').innerHTML = getColoredError(target);
-                        speakText(target);
-                    }
+                    document.getElementById('feedback').innerHTML = getColoredError(target);
+                    speakText(target);
                 }
             }
         }
@@ -499,7 +518,7 @@
             let indices = [];
             while(indices.length < countToHide) {
                 let r = Math.floor(Math.random() * word.length);
-                if(word[r] !== ' ' && !indices.includes(r)) indices.push(r);
+                if(word[r] !== ' ' && word[r] !== "'" && word[r] !== "’" && !indices.includes(r)) indices.push(r);
             }
             indices.forEach(idx => result[idx] = '_');
             return result.join('');
@@ -538,7 +557,9 @@
 
         <div id="score">✅ 0 | ❌ 0<br><small>Оберіть .txt файл</small></div>
         
-        <div id="questionContainer"></div> <div id="balloonStage"></div>
+        <div id="questionContainer"></div> 
+        
+        <div id="balloonStage"></div>
 
         <div class="settings-panel">
             <button class="lang-toggle" onclick="toggleLang()">Мова: <span id="langBtn">PL</span> ⇄</button>
