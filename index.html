@@ -357,142 +357,14 @@
         }
     </style>
     <script>
-        // --- INDEXED DB ENGINE (з підтримкою langPair) ---
-        let db = null;
-        function initDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open("QuizAppWordsDB", 2);
-                request.onupgradeneeded = (e) => {
-                    const database = e.target.result;
-                    let store;
-                    if (!database.objectStoreNames.contains("words")) {
-                        store = database.createObjectStore("words", { keyPath: "id", autoIncrement: true });
-                    } else {
-                        store = e.target.transaction.objectStore("words");
-                    }
-                    if (!store.indexNames.contains("level")) store.createIndex("level", "level", { unique: false });
-                    if (!store.indexNames.contains("topic")) store.createIndex("topic", "topic", { unique: false });
-                    if (!store.indexNames.contains("learned")) store.createIndex("learned", "learned", { unique: false });
-                    if (!store.indexNames.contains("word")) store.createIndex("word", "word", { unique: false });
-                    if (!store.indexNames.contains("langPair")) store.createIndex("langPair", "langPair", { unique: false });
-                };
-                request.onsuccess = (e) => { 
-                    db = e.target.result; 
-                    resolve(db); 
-                };
-                request.onerror = (e) => reject(e);
-            });
-        }
-
-        async function saveWordsToDB(wordsList) {
-            if (!db) await initDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction("words", "readwrite");
-                const store = tx.objectStore("words");
-                wordsList.forEach(w => {
-                    store.add({
-                        word: (w.word || "").trim(),
-                        translation: (w.translation || "").trim(),
-                        level: (w.level || "A1").toUpperCase().trim(),
-                        topic: (w.topic || "General").trim(),
-                        langPair: (w.langPair || activeDictPair || "en-pl").toLowerCase().trim(),
-                        learned: w.learned !== undefined ? Boolean(w.learned) : false
-                    });
-                });
-                tx.oncomplete = () => resolve();
-                tx.onerror = (e) => reject(e);
-            });
-        }
-
-        async function addSingleWordToDB(word, translation, level = "A1", topic = "General", langPair = activeDictPair, learned = false) {
-            if (!db) await initDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction("words", "readwrite");
-                const store = tx.objectStore("words");
-                const req = store.add({
-                    word: word.trim(),
-                    translation: translation.trim(),
-                    level: level.toUpperCase().trim(),
-                    topic: topic.trim(),
-                    langPair: (langPair || "en-pl").toLowerCase().trim(),
-                    learned: Boolean(learned)
-                });
-                req.onsuccess = (e) => resolve(e.target.result);
-                req.onerror = (e) => reject(e);
-            });
-        }
-
-        async function updateWordInDB(id, word, translation, level, topic, langPair, learned) {
-            if (!db) await initDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction("words", "readwrite");
-                const store = tx.objectStore("words");
-                const req = store.put({
-                    id: Number(id),
-                    word: word.trim(),
-                    translation: translation.trim(),
-                    level: level.toUpperCase().trim(),
-                    topic: topic.trim(),
-                    langPair: (langPair || "en-pl").toLowerCase().trim(),
-                    learned: Boolean(learned)
-                });
-                req.onsuccess = () => resolve();
-                req.onerror = (e) => reject(e);
-            });
-        }
-
-        async function deleteWordFromDB(id) {
-            if (!db) await initDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction("words", "readwrite");
-                const store = tx.objectStore("words");
-                const req = store.delete(Number(id));
-                req.onsuccess = () => resolve();
-                req.onerror = (e) => reject(e);
-            });
-        }
-
-        async function getAllDBWords() {
-            if (!db) await initDB();
-            return new Promise((resolve) => {
-                const tx = db.transaction("words", "readonly");
-                const store = tx.objectStore("words");
-                const req = store.getAll();
-                req.onsuccess = () => {
-                    const res = req.result || [];
-                    res.forEach(item => {
-                        if (!item.langPair) item.langPair = "en-pl";
-                    });
-                    resolve(res);
-                };
-            });
-        }
-
-        async function updateWordLearnedStatus(id, learned) {
-            if (!db || !id) return;
-            const tx = db.transaction("words", "readwrite");
-            const store = tx.objectStore("words");
-            const getReq = store.get(Number(id));
-            getReq.onsuccess = () => {
-                const data = getReq.result;
-                if (data) {
-                    data.learned = learned;
-                    store.put(data);
-                }
-            };
-        }
-
-        async function clearDB() {
-            if (!db) await initDB();
-            return new Promise((resolve) => {
-                const tx = db.transaction("words", "readwrite");
-                tx.objectStore("words").clear();
-                tx.oncomplete = () => resolve();
-            });
-        }
-
-        // --- ДАНІ СЛОВНИКІВ ---
-        const vocabularyList1 = `appearance;wygląd;зовнішність
+        // --- РЕЄСТР СЛОВНИКІВ ---
+        // Для додавання нового словника просто додайте новий об'єкт у масив APP_DICTIONARIES:
+        // { id: 'унікальний_ідентифікатор', name: 'Назва для списку', data: `слово1;переклад_PL;переклад_UA\nслово2;...` }
+        const APP_DICTIONARIES = [
+            {
+                id: 'unit1',
+                name: 'Unit 01: Appearance & Fashion',
+                data: `appearance;wygląd;зовнішність
 bald;łysy;лисий
 beard;broda;борода
 beauty;pięknie, uroda;краса
@@ -658,9 +530,12 @@ send out the wrong message;wyślij niewłaściwą wiadomość;давати хи�
 shave off your beard;ogol brodę;зголити бороду
 staighten your hair;wyprostuj włosy;випрямляти волосся
 tell the difference;powiedz różnicę;бачити різницю
-wear contant lenses;nosić soczewki kontaktowe;носити контактні лінзи`;
-
-        const vocabularyList2 = `accommodation;mieszkanie, zakwaterowanie;помешкання, житло
+wear contant lenses;nosić soczewki kontaktowe;носити контактні лінзи`
+            },
+            {
+                id: 'unit3',
+                name: 'Unit 03: Travel & Holidays',
+                data: `accommodation;mieszkanie, zakwaterowanie;помешкання, житло
 activity holiday;aktywny wypoczynek;активний відпочинок
 all-inclusive holiday;wczasy all-inclusive;відпочинок "все включено"
 bed and breakfast;pensjonat;пансіонат / готель із сніданком
@@ -818,7 +693,232 @@ post-holiday depression;powakacyjna chandra;післявідпусткова д�
 soak up the sun;wygrzewać się na słońcu;грітися на сонці
 under pressure;pod presją;під тиском
 unwind / let your hair down;wyluzować;розслабитися
-feel carsick;mieć chorobę lokomocyjną;відчувати укачування`;
+feel carsick;mieć chorobę lokomocyjną;відчувати укачування`
+            }
+			,
+            {
+                id: 'unit',
+                name: 'Unit: Systems',
+                data: `
+				to abandon;porzucać, opuszczać;кидати, залишати
+air conditioning;klimatyzacja;кондиціонування повітря
+to analyze;analizować;аналізувати
+to announce;ogłosić;оголошувати, анонсувати
+autonomy;niezależność, autonomia;автономія, незалежність
+behavior;zachowanie;поведінка
+board, the Management Board;zarząd;правління, рада директорів
+cloud, the cloud;chmura;хмара, хмарне сховище
+to collect;zbierać;збирати
+concept;koncepcja, pomysł;концепція, поняття, ідея
+contents;zawartość;вміст, зміст
+digital;cyfrowy;цифровий
+driverless;bez kierowcy;безпілотний, без водія
+to exceed;przekroczyć;перевищувати
+fizzy drink;napój gazowany;газований напій
+for short;w skrócie;скорочено, для стислості
+heating;ogrzewanie;опалення
+to influence sth;wpływać na coś;впливати на щось
+to introduce;wprowadzić;впроваджувати, представляти
+IoT (the Internet of Things);Internet rzeczy;Інтернет речей (IoT)
+low-cost;niskokosztowy;бюджетний, недорогий
+low-power;zużywający niewiele energii;низькоенергетичний, з низьким енергоспоживанням
+to modify;modyfikować;модифікувати, змінювати
+to propose;proponować;пропонувати
+refrigerator;lodówka;холодильник
+remote control;zdalne sterowanie;дистанційне керування, пульт
+RFID chip (radio-frequency identification chip);układ RFID;RFID-чип (радіочастотна ідентифікація)
+sensor;czujnik;сенсор, датчик
+to share;udostępniać;ділитися, поширювати
+smart;inteligentny;розумний, смарт
+to stick;przyjąć się (o terminie);прижитися (про термін), приклеювати
+to sb's benefit;na czyjąś korzyść;на чиюсь користь
+term;termin;термін, поняття
+thermostat;termostat;термостат
+to track;śledzić, monitorować;відстежувати, моніторити
+vending machine;automat sprzedający;торгівельний автомат
+waste management;gospodarka odpadami;управління відходами
+wearable;urządzenie ubieralne;носимий пристрій (гаджет)
+workload;ilość pracy;обсяг роботи, робоче навантаження
+to work overtime;robić nadgodziny;працювати понаднормово
+wage;stawka, płaca;погодинна/тижнева оплата, ставка
+to streamline;usprawniać;оптимізувати, спрощувати, вдосконалювати
+salary;pensja;місячна зарплата, оклад
+retirement;emerytura jako stan;вихід на пенсію, пенсійний вік
+to retire;przejść na emeryturę;виходити на пенсію
+professional development;rozwój zawodowy;професійний розвиток
+to outsource;zlecać na zewnątrz;передавати на аутсорсинг, замовляти зовні
+to deserve sth;zasługiwać na cos;заслуговувати на щось
+colleague;kolega z pracy;колега по роботі
+employee;pracownik;працівник, робітник
+employer;pracodawca;роботодавець
+data;dane;дані
+datum;dana (jedna);одинична дана (елемент даних)
+phenomenon;zjawisko;явище
+phenomena;zjawiska;явища
+advantages;zalety;переваги, плюси
+disadvantages;wady;недоліки, мінуси
+				
+				`
+            }
+        ];
+
+        function populateDictSelectOptions() {
+            const select = document.getElementById('dictBookSelect');
+            if (!select) return;
+            select.innerHTML = '';
+            
+            APP_DICTIONARIES.forEach(dict => {
+                const opt = document.createElement('option');
+                opt.value = dict.id;
+                opt.textContent = dict.name;
+                select.appendChild(opt);
+            });
+
+            const dbOpt = document.createElement('option');
+            dbOpt.value = 'indexedDB';
+            dbOpt.textContent = '💾 База даних IndexedDB';
+            select.appendChild(dbOpt);
+
+            if (APP_DICTIONARIES.length > 1) {
+                select.value = APP_DICTIONARIES[1].id;
+            } else if (APP_DICTIONARIES.length > 0) {
+                select.value = APP_DICTIONARIES[0].id;
+            }
+        }
+
+        // --- INDEXED DB ENGINE (з підтримкою langPair) ---
+        let db = null;
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("QuizAppWordsDB", 2);
+                request.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    let store;
+                    if (!database.objectStoreNames.contains("words")) {
+                        store = database.createObjectStore("words", { keyPath: "id", autoIncrement: true });
+                    } else {
+                        store = e.target.transaction.objectStore("words");
+                    }
+                    if (!store.indexNames.contains("level")) store.createIndex("level", "level", { unique: false });
+                    if (!store.indexNames.contains("topic")) store.createIndex("topic", "topic", { unique: false });
+                    if (!store.indexNames.contains("learned")) store.createIndex("learned", "learned", { unique: false });
+                    if (!store.indexNames.contains("word")) store.createIndex("word", "word", { unique: false });
+                    if (!store.indexNames.contains("langPair")) store.createIndex("langPair", "langPair", { unique: false });
+                };
+                request.onsuccess = (e) => { 
+                    db = e.target.result; 
+                    resolve(db); 
+                };
+                request.onerror = (e) => reject(e);
+            });
+        }
+
+        async function saveWordsToDB(wordsList) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("words", "readwrite");
+                const store = tx.objectStore("words");
+                wordsList.forEach(w => {
+                    store.add({
+                        word: (w.word || "").trim(),
+                        translation: (w.translation || "").trim(),
+                        level: (w.level || "A1").toUpperCase().trim(),
+                        topic: (w.topic || "General").trim(),
+                        langPair: (w.langPair || activeDictPair || "en-pl").toLowerCase().trim(),
+                        learned: w.learned !== undefined ? Boolean(w.learned) : false
+                    });
+                });
+                tx.oncomplete = () => resolve();
+                tx.onerror = (e) => reject(e);
+            });
+        }
+
+        async function addSingleWordToDB(word, translation, level = "A1", topic = "General", langPair = activeDictPair, learned = false) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("words", "readwrite");
+                const store = tx.objectStore("words");
+                const req = store.add({
+                    word: word.trim(),
+                    translation: translation.trim(),
+                    level: level.toUpperCase().trim(),
+                    topic: topic.trim(),
+                    langPair: (langPair || "en-pl").toLowerCase().trim(),
+                    learned: Boolean(learned)
+                });
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = (e) => reject(e);
+            });
+        }
+
+        async function updateWordInDB(id, word, translation, level, topic, langPair, learned) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("words", "readwrite");
+                const store = tx.objectStore("words");
+                const req = store.put({
+                    id: Number(id),
+                    word: word.trim(),
+                    translation: translation.trim(),
+                    level: level.toUpperCase().trim(),
+                    topic: topic.trim(),
+                    langPair: (langPair || "en-pl").toLowerCase().trim(),
+                    learned: Boolean(learned)
+                });
+                req.onsuccess = () => resolve();
+                req.onerror = (e) => reject(e);
+            });
+        }
+
+        async function deleteWordFromDB(id) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("words", "readwrite");
+                const store = tx.objectStore("words");
+                const req = store.delete(Number(id));
+                req.onsuccess = () => resolve();
+                req.onerror = (e) => reject(e);
+            });
+        }
+
+        async function getAllDBWords() {
+            if (!db) await initDB();
+            return new Promise((resolve) => {
+                const tx = db.transaction("words", "readonly");
+                const store = tx.objectStore("words");
+                const req = store.getAll();
+                req.onsuccess = () => {
+                    const res = req.result || [];
+                    res.forEach(item => {
+                        if (!item.langPair) item.langPair = "en-pl";
+                    });
+                    resolve(res);
+                };
+            });
+        }
+
+        async function updateWordLearnedStatus(id, learned) {
+            if (!db || !id) return;
+            const tx = db.transaction("words", "readwrite");
+            const store = tx.objectStore("words");
+            const getReq = store.get(Number(id));
+            getReq.onsuccess = () => {
+                const data = getReq.result;
+                if (data) {
+                    data.learned = learned;
+                    store.put(data);
+                }
+            };
+        }
+
+        async function clearDB() {
+            if (!db) await initDB();
+            return new Promise((resolve) => {
+                const tx = db.transaction("words", "readwrite");
+                tx.objectStore("words").clear();
+                tx.oncomplete = () => resolve();
+            });
+        }
 
         let activeDictPair = 'en-pl';
         let currentGroupIndex = -1;
@@ -1411,7 +1511,8 @@ feel carsick;mieć chorobę lokomocyjną;відчувати укачування
                 if (bookChoice === 'indexedDB') {
                     renderDictionaryGroups(newIndex);
                 } else {
-                    const rawData = (bookChoice === 'unit1') ? vocabularyList1 : vocabularyList2;
+                    const dictObj = APP_DICTIONARIES.find(d => d.id === bookChoice);
+                    const rawData = dictObj ? dictObj.data : '';
                     const lines = rawData.trim().split('\n');
                     const chunkSize = wordsPerGroup;
                     const groupLines = lines.slice(newIndex * chunkSize, (newIndex + 1) * chunkSize);
@@ -1565,7 +1666,8 @@ feel carsick;mieć chorobę lokomocyjną;відчувати укачування
             currentDictName = bookSelectElem.options[bookSelectElem.selectedIndex].text;
             activeDictPair = pair;
             
-            const rawData = (bookChoice === 'unit1') ? vocabularyList1 : vocabularyList2;
+            const dictObj = APP_DICTIONARIES.find(d => d.id === bookChoice);
+            const rawData = dictObj ? dictObj.data : '';
             const lines = rawData.trim().split('\n');
             const chunkSize = wordsPerGroup;
             totalGroups = Math.ceil(lines.length / chunkSize);
@@ -1872,6 +1974,7 @@ feel carsick;mieć chorobę lokomocyjną;відчувати укачування
 
         window.addEventListener('DOMContentLoaded', () => {
             initDB();
+            populateDictSelectOptions();
         });
     </script>
 </head>
@@ -1963,11 +2066,18 @@ feel carsick;mieć chorobę lokomocyjną;відчувати укачування
             </div>
             
             <div style="margin-bottom: 12px;">
+                <label style="font-size: 14px;"><strong>Оберіть мовну пару для вивчення:</strong></label>
+                <select id="dictPairSelect" onchange="renderDictionaryGroups()">
+                    <option value="en-pl" selected>Англійська ⇄ Польська</option>
+                    <option value="en-uk">Англійська ⇄ Українська</option>
+                    <option value="pl-uk">Польська ⇄ Українська</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 12px;">
                 <label style="font-size: 14px;"><strong>Оберіть джерело слів:</strong></label>
                 <select id="dictBookSelect" onchange="refreshDBFilters()">
-                    <option value="unit1">Unit 01: Appearance & Fashion</option>
-                    <option value="unit3" selected>Unit 03: Travel & Holidays</option>
-                    <option value="indexedDB">💾 База даних IndexedDB</option>
+                    <!-- Динамічно заповнюється з APP_DICTIONARIES -->
                 </select>
             </div>
 
@@ -2003,97 +2113,84 @@ feel carsick;mieć chorobę lokomocyjną;відчувати укачування
                         </div>
                         <div id="addWordForm" style="display:none; margin-top:8px;">
                             <div style="display:flex; flex-direction:column; gap:6px;">
-                                <input type="text" id="newWordInput" placeholder="Слово (напр. apple)" style="width:100%; font-size:13px; padding:6px; margin:0;">
-                                <input type="text" id="newTransInput" placeholder="Переклад (напр. яблуко)" style="width:100%; font-size:13px; padding:6px; margin:0;">
-                                <div style="display:flex; gap:5px; width:100%;">
-                                    <input type="text" id="newLevelInput" placeholder="Рівень (A1)" style="flex:1; font-size:13px; padding:6px; margin:0;">
-                                    <input type="text" id="newTopicInput" placeholder="Тема (Food)" style="flex:1; font-size:13px; padding:6px; margin:0;">
+                                <input type="text" id="newWordInput" placeholder="Слово (напр. apple)" style="width:100%; font-size:13px; text-align:left;">
+                                <input type="text" id="newTransInput" placeholder="Переклад (напр. jabłko)" style="width:100%; font-size:13px; text-align:left;">
+                                <div style="display:flex; gap:5px;">
+                                    <input type="text" id="newLevelInput" placeholder="Рівень (A1, B2...)" value="A1" style="flex:1; font-size:12px; text-align:left;">
+                                    <input type="text" id="newTopicInput" placeholder="Тема (General...)" value="General" style="flex:1; font-size:12px; text-align:left;">
                                 </div>
-                                <select id="newLangPairInput" style="font-size:12px; padding:6px;">
-                                    <option value="en-pl">Англійська ⇄ Польська (EN-PL)</option>
-                                    <option value="en-uk">Англійська ⇄ Українська (EN-UK)</option>
-                                    <option value="pl-uk">Польська ⇄ Українська (PL-UK)</option>
+                                <select id="newLangPairInput" style="font-size:12px; margin-top:2px;">
+                                    <option value="en-pl">Мовна пара: EN-PL</option>
+                                    <option value="en-uk">Мовна пара: EN-UK</option>
+                                    <option value="pl-uk">Мовна пара: PL-UK</option>
                                 </select>
-                                <button onclick="createNewWordInDB()" style="background:#4CAF50; color:white; font-size:12px; padding:8px; margin-top:5px; width:100%;">Зберегти у DB</button>
+                                <button onclick="createNewWordInDB()" style="background:#2196F3; color:white; font-size:12px; padding:8px; margin-top:4px;">Зберегти у базу DB</button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Секція імпорту та резервних копій -->
+                    <!-- Секція імпорту/експорту -->
                     <div class="collapsible-section">
                         <div class="collapsible-title" onclick="toggleSection('importExportForm')">
-                            <span>📥 Імпорт / Експорт (Бекап)</span>
+                            <span>💾 Експорт / Імпорт даних</span>
                             <small>▼</small>
                         </div>
-                        <div id="importExportForm" style="display:none; margin-top:8px; font-size:12px;">
-                            <label style="display:block; margin-bottom:5px;"><strong>Імпорт з файлу (.json, .txt, .csv):</strong></label>
-                            <input type="file" id="dbFileInput" accept=".json, .txt, .csv" style="width:100%; margin-bottom:8px; font-size:11px;">
-                            
-                            <div style="display:flex; gap:5px; margin-bottom:10px;">
-                                <button onclick="processDBImportFile()" style="background:#2196F3; color:white; flex:1; font-size:12px; padding:6px;">Завантажити файл</button>
-                                <button onclick="handleClearDB()" style="background:#d32f2f; color:white; flex:1; font-size:12px; padding:6px;">Очистити DB</button>
+                        <div id="importExportForm" style="display:none; margin-top:8px;">
+                            <div style="display:flex; gap:5px; margin-bottom:8px;">
+                                <button onclick="exportDBData('json')" style="flex:1; font-size:11px; padding:6px; background:#4CAF50; color:white;">Експорт (JSON)</button>
+                                <button onclick="exportDBData('txt')" style="flex:1; font-size:11px; padding:6px; background:#8e24aa; color:white;">Експорт (TXT)</button>
                             </div>
-
-                            <label style="display:block; margin-bottom:5px;"><strong>Експорт бекапу:</strong></label>
-                            <div style="display:flex; gap:5px;">
-                                <button onclick="exportDBData('json')" style="background:#009688; color:white; flex:1; font-size:12px; padding:6px;">Eкспорт JSON</button>
-                                <button onclick="exportDBData('txt')" style="background:#ff9800; color:white; flex:1; font-size:12px; padding:6px;">Експорт TXT</button>
+                            <div style="display:flex; flex-direction:column; gap:4px; border-top:1px solid var(--border-color); padding-top:6px;">
+                                <label style="font-size:11px; font-weight:bold;">Імпорт JSON/TXT файлу:</label>
+                                <input type="file" id="dbFileInput" accept=".json, .txt" style="font-size:11px; text-align:left; width:100%;">
+                                <button onclick="processDBImportFile()" style="background:#ff9800; color:white; font-size:11px; padding:6px; margin-top:4px;">Завантажити файл у DB</button>
+                            </div>
+                            <div style="margin-top:8px; text-align:right;">
+                                <button onclick="handleClearDB()" style="background:#d32f2f; color:white; font-size:11px; padding:4px 8px;">Очистити всі слова DB</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div style="margin-bottom: 15px;">
-                <label style="font-size: 14px;"><strong>Оберіть мовну пару для вивчення:</strong></label>
-                <select id="dictPairSelect" onchange="renderDictionaryGroups()">
-                    <option value="en-pl">Англійська ⇄ Польська</option>
-                    <option value="en-uk">Англійська ⇄ Українська</option>
-                    <option value="pl-uk">Польська ⇄ Українська</option>
-                </select>
-            </div>
-            
-            <div id="dictGroupsContainer"></div>
-            
-            <button onclick="document.getElementById('dictModal').style.display='none'" style="background:#333; color:white; width:100%; margin-top:20px;">Закрити</button>
+            <div id="dictGroupsContainer" style="max-height: 350px; overflow-y: auto;"></div>
         </div>
     </div>
 
-    <!-- Модальне вікно Форми Редагування Запису IndexedDB -->
+    <!-- Модальне вікно Редагування слова в DB -->
     <div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--modal-bg); z-index:1100; overflow-y:auto; padding:20px; box-sizing:border-box;">
-        <div style="background:var(--modal-content-bg); color:var(--text-color); border-radius:15px; padding:20px; max-width:450px; margin:40px auto 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
+        <div style="background:var(--modal-content-bg); color:var(--text-color); border-radius:15px; padding:20px; max-width:400px; margin:50px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
             <div class="modal-header">
-                <h2>✏️ Редагувати слово</h2>
+                <h2>✏️ Редагування слова</h2>
                 <button class="close-icon-btn" onclick="document.getElementById('editModal').style.display='none'" title="Закрити">✖</button>
             </div>
-
+            
             <div class="edit-form-group">
-                <label>Слово / Вираз:</label>
+                <label>Слово (Word):</label>
                 <input type="text" id="editWordInput">
             </div>
 
             <div class="edit-form-group">
-                <label>Переклад:</label>
+                <label>Переклад (Translation):</label>
                 <input type="text" id="editTransInput">
             </div>
 
-            <div style="display:flex; gap:10px;">
-                <div class="edit-form-group" style="flex:1;">
-                    <label>Рівень:</label>
-                    <input type="text" id="editLevelInput" placeholder="A1">
-                </div>
-                <div class="edit-form-group" style="flex:1;">
-                    <label>Тема:</label>
-                    <input type="text" id="editTopicInput" placeholder="General">
-                </div>
+            <div class="edit-form-group">
+                <label>Рівень (Level):</label>
+                <input type="text" id="editLevelInput" placeholder="A1, A2, B1...">
             </div>
 
             <div class="edit-form-group">
-                <label>Мовна пара (Шифр):</label>
+                <label>Тема (Topic):</label>
+                <input type="text" id="editTopicInput" placeholder="General, Travel...">
+            </div>
+
+            <div class="edit-form-group">
+                <label>Мовна пара (Lang Pair):</label>
                 <select id="editLangPairInput">
-                    <option value="en-pl">Англійська ⇄ Польська (EN-PL)</option>
-                    <option value="en-uk">Англійська ⇄ Українська (EN-UK)</option>
-                    <option value="pl-uk">Польська ⇄ Українська (PL-UK)</option>
+                    <option value="en-pl">EN-PL</option>
+                    <option value="en-uk">EN-UK</option>
+                    <option value="pl-uk">PL-UK</option>
                 </select>
             </div>
 
@@ -2105,24 +2202,21 @@ feel carsick;mieć chorobę lokomocyjną;відчувати укачування
                 </select>
             </div>
 
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button onclick="saveWordChanges()" style="background:#4CAF50; color:white; flex:1;">Зберегти</button>
-                <button onclick="document.getElementById('editModal').style.display='none'" style="background:#777; color:white; flex:1;">Скасувати</button>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:15px;">
+                <button onclick="document.getElementById('editModal').style.display='none'" style="background:#ccc; color:#333; font-size:13px; padding:8px 14px;">Скасувати</button>
+                <button onclick="saveWordChanges()" style="background:#4CAF50; color:white; font-size:13px; padding:8px 14px;">Зберегти</button>
             </div>
         </div>
     </div>
 
-    <!-- Модальне вікно Статистики DB -->
-    <div id="statsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--modal-bg); z-index:1000; overflow-y:auto; padding:20px; box-sizing:border-box;">
-        <div style="background:var(--modal-content-bg); color:var(--text-color); border-radius:15px; padding:20px; max-width:600px; margin:0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+    <!-- Модальне вікно Статистики -->
+    <div id="statsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--modal-bg); z-index:1050; overflow-y:auto; padding:20px; box-sizing:border-box;">
+        <div style="background:var(--modal-content-bg); color:var(--text-color); border-radius:15px; padding:20px; max-width:500px; margin:40px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
             <div class="modal-header">
-                <h2>📊 Статистика слів у IndexedDB</h2>
+                <h2>📊 Статистика вивчення (IndexedDB)</h2>
                 <button class="close-icon-btn" onclick="document.getElementById('statsModal').style.display='none'" title="Закрити">✖</button>
             </div>
-            
-            <div id="statsContainer"></div>
-
-            <button onclick="document.getElementById('statsModal').style.display='none'" style="background:#333; color:white; width:100%; margin-top:20px;">Закрити</button>
+            <div id="statsContainer" style="font-size:13px;"></div>
         </div>
     </div>
 </body>
