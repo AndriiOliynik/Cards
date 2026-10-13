@@ -1910,14 +1910,52 @@ write hurtful things online;pisać krzywdzące komentarze w internecie;писа�
                 
                 groupDiv.innerHTML = `<h4 style="margin:0 0 5px 0; color:#2196F3;">Група ${groupIndex + 1} (${groupLines.length} слів)</h4>
                                       <div style="font-size:12px; opacity:0.8; margin-bottom:8px;">${preview}...</div>`;
-                
+
+                const actions = document.createElement('div');
+                actions.style.display = 'flex';
+                actions.style.flexWrap = 'wrap';
+                actions.style.gap = '8px';
+                actions.style.marginTop = '8px';
+
                 const btn = document.createElement('button');
                 btn.innerText = "Вивчити";
                 btn.style.fontSize = "12px";
                 btn.style.padding = "6px 12px";
                 btn.onclick = () => loadDictionaryGroup(groupLines, pair, groupIndex, totalGroups);
-                groupDiv.appendChild(btn);
-                
+                actions.appendChild(btn);
+
+                const viewBtn = document.createElement('button');
+                viewBtn.innerText = "Переглянути всі слова";
+                viewBtn.style.fontSize = "12px";
+                viewBtn.style.padding = "6px 12px";
+                viewBtn.style.background = '#e3f2fd';
+                viewBtn.style.color = '#1565c0';
+                viewBtn.style.border = '1px solid #90caf9';
+                viewBtn.onclick = () => {
+                    const existingList = groupDiv.querySelector('.all-words-list');
+                    if (existingList) {
+                        existingList.remove();
+                        viewBtn.innerText = 'Переглянути всі слова';
+                        return;
+                    }
+                    const allWords = document.createElement('div');
+                    allWords.className = 'all-words-list';
+                    allWords.style.cssText = 'font-size:13px; line-height:1.55; margin-top:10px; padding:10px; border-radius:8px; background:var(--panel-bg); border:1px solid var(--border-color);';
+                    allWords.innerHTML = groupLines.map(line => {
+                        const parts = line.split(';');
+                        let word, translation;
+                        if (pair === 'en-pl') { word = parts[0]; translation = parts[1]; }
+                        else if (pair === 'en-uk') { word = parts[0]; translation = parts[2]; }
+                        else { word = parts[1]; translation = parts[2]; }
+                        const escapeHtml = value => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        return `<div style="padding:4px 0; border-bottom:1px solid var(--border-color);"><strong>${escapeHtml(word)}</strong> — ${escapeHtml(translation)}</div>`;
+                    }).join('');
+                    actions.insertAdjacentElement('afterend', allWords);
+                    viewBtn.innerText = 'Сховати слова';
+                };
+                actions.appendChild(viewBtn);
+                groupDiv.appendChild(actions);
+
                 container.appendChild(groupDiv);
             }
         }
